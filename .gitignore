@@ -1,0 +1,48 @@
+# Local toolchains, dependency caches, build output and release staging
+/.cache/
+/target/
+/dist/
+
+# Browser profiles: cookies, history, bookmarks, extensions and downloads
+/AzyCore.Data/
+/AzyCore.Data.*/
+/WebView2/
+/WebView2.UI/
+
+# Executables are distributed as GitHub Release assets
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.msi
+*.msix
+*.zip
+*.crx
+
+# Temporary files and logs
+*.log
+*.tmp
+*.temp
+*.bak
+*.old
+*.pid
+*.dmp
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Local settings, credentials and development sessions
+.env
+.env.*
+!.env.example
+/.codex/
+/.agents/
+/.aws/
+/.vs/
+/.vscode/
+*.pem
+*.key
+*.pfx
+*.p12
+*.user
+*.suo

@@ -1,0 +1,25 @@
+{
+  "source": "The EasyList authors",
+  "revision": "9bbc5c9d4eab4102f3af12b97eb8d232ede46c5f",
+  "license": "CC-BY-SA-3.0-or-later",
+  "domains": 49470,
+  "additionalDomains": [
+    "doubleclick.net",
+    "googlesyndication.com",
+    "googleadservices.com",
+    "googletagservices.com",
+    "google-analytics.com",
+    "analytics.google.com",
+    "adservice.google.com"
+  ],
+  "inputs": [
+    {
+      "file": "easylist-adservers.txt",
+      "sha256": "7ead756ad20bcf80b1573aea1daf174b9912621fa474fdfc94af0d0990cc7a81"
+    },
+    {
+      "file": "easyprivacy-general.txt",
+      "sha256": "a205bef61ca8ade6c3c45ad0d5d6aa84b5f75e585d857de65922bf2ce4fb08b4"
+    }
+  ]
+}

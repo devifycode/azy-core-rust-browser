@@ -1,0 +1,33 @@
+[package]
+name = "azy-core"
+version = "0.1.0"
+edition = "2021"
+description = "Azy Core browser for Windows"
+build = "build.rs"
+
+[[bin]]
+name = "AzyCore"
+path = "src/main.rs"
+
+[dependencies]
+tao = "0.34"
+wry = "0.55"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+image = { version = "0.25", default-features = false, features = ["png", "ico"] }
+webview2-com = "0.38"
+base64 = "0.22"
+sha2 = "0.10"
+flate2 = "1"
+crc32fast = "1"
+windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_System_Com", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_Networking_WinHttp", "Win32_Security_Cryptography"] }
+
+[build-dependencies]
+embed-resource = "3"
+image = { version = "0.25", default-features = false, features = ["png", "ico"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
