@@ -55,6 +55,7 @@ fn diagnostic(message: &str) {
 #[derive(Debug, Clone)]
 enum Msg {
     ContentFullscreen(u64, bool),
+    FullscreenStacking,
     DownloadProgress(u64, u64, u64),
     UpdateChecked(Result<Option<updater::Available>, String>),
     UpdateDownloaded(Result<PathBuf, String>),
@@ -107,6 +108,7 @@ struct Tab {
 }
 struct Browser {
     content_fullscreen: Option<(u64, bool)>,
+    fullscreen_topmost: bool,
     update: updater::State,
     update_available: Option<updater::Available>,
     update_plan: Option<PathBuf>,
@@ -552,8 +554,48 @@ impl Browser {
             self.ui_region = None;
         }
     }
+    fn update_fullscreen_stacking(&mut self) {
+        use tao::platform::windows::WindowExtWindows;
+        use windows::Win32::{
+            Foundation::HWND,
+            UI::WindowsAndMessaging::{
+                GetForegroundWindow, SetWindowPos, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOACTIVATE,
+                SWP_NOMOVE, SWP_NOSIZE,
+            },
+        };
+        let hwnd = HWND(self.window.hwnd() as *mut _);
+        // A WebView can keep the shell taskbar above a borderless fullscreen
+        // window. Raise only the active fullscreen window; relinquish topmost
+        // immediately when another application is activated or fullscreen ends.
+        let topmost = self.window.fullscreen().is_some()
+            && !self.window.is_minimized()
+            && unsafe { GetForegroundWindow() == hwnd };
+        if topmost != self.fullscreen_topmost {
+            let result = unsafe {
+                SetWindowPos(
+                    hwnd,
+                    Some(if topmost {
+                        HWND_TOPMOST
+                    } else {
+                        HWND_NOTOPMOST
+                    }),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE,
+                )
+            };
+            if result.is_ok() {
+                self.fullscreen_topmost = topmost;
+            }
+        }
+    }
     fn layout(&mut self) {
-        if let Some((id, _)) = self.content_fullscreen {
+        if let Some((id, _)) = self
+            .content_fullscreen
+            .filter(|_| self.store.settings.video_fullscreen)
+        {
             let size = self
                 .window
                 .inner_size()
@@ -580,14 +622,17 @@ impl Browser {
             }
             return;
         }
+        if self.content_fullscreen.is_some() {
+            let _ = self.ui.set_visible(true);
+        }
         let top = self.top();
         let size = self
             .window
             .inner_size()
             .to_logical::<f64>(self.window.scale_factor());
-        let split = self
-            .split
-            .filter(|ids| ids.contains(&self.active) && self.panel.is_empty());
+        let split = self.split.filter(|ids| {
+            self.content_fullscreen.is_none() && ids.contains(&self.active) && self.panel.is_empty()
+        });
         let split_x = ((size.width - 8.).max(2.) * self.split_ratio).floor();
         let showing_page = (split.is_some()
             || self
@@ -1659,6 +1704,7 @@ impl Browser {
     }
     fn message(&mut self, msg: Msg) {
         match msg {
+            Msg::FullscreenStacking => self.update_fullscreen_stacking(),
             Msg::ContentFullscreen(id, full) => {
                 if full && self.tabs.iter().any(|t| t.id == id && t.visible) {
                     self.close_chrome_overlays();
@@ -2803,6 +2849,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     );
     let mut app = Browser {
         content_fullscreen: None,
+        fullscreen_topmost: false,
         update: updater::State::default(),
         update_available: None,
         update_plan: None,
@@ -2903,6 +2950,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 *control_flow = ControlFlow::Exit;
             }
             Event::WindowEvent {
+                event: WindowEvent::Focused(_),
+                ..
+            } => {
+                // Recheck after Windows completes the activation transition;
+                // GetForegroundWindow can still refer to us inside WM_NCACTIVATE.
+                let _ = app.proxy.send_event(Msg::FullscreenStacking);
+            }
+            Event::WindowEvent {
                 event: WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. },
                 ..
             } => {
@@ -2915,12 +2970,21 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             app.maintain();
         }
         app.present_ready();
+        app.update_fullscreen_stacking();
         if !matches!(*control_flow, ControlFlow::Exit) {
             let next = app
                 .tabs
                 .iter()
                 .filter_map(|tab| tab.reveal_at)
                 .fold(app.next_maintenance, Instant::min);
+            // WebView child focus can suppress Tao's root focus notifications.
+            // Keep a bounded recheck while fullscreen so Alt+Tab always releases
+            // the topmost flag, even when no browser input arrives afterward.
+            let next = if app.window.fullscreen().is_some() {
+                next.min(Instant::now() + Duration::from_millis(100))
+            } else {
+                next
+            };
             *control_flow = ControlFlow::WaitUntil(next);
         }
     });

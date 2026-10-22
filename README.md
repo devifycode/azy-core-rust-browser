@@ -4,7 +4,7 @@ Browser Windows x64 dengan aplikasi native Rust dan mesin Microsoft Edge WebView
 
 ## Menjalankan
 
-Unduh **AzyCore-Setup-0.1.6-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
+Unduh **AzyCore-Setup-0.1.7-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
 
 Jalankan installer, pilih **Lanjut**, lalu **Cari…** pada halaman **Pilih Lokasi Instalasi** untuk menentukan folder. Lokasi default adalah `%LOCALAPPDATA%\Programs\Azy Core`, dengan instalasi untuk akun pengguna saat ini tanpa elevasi administrator. Pilih folder yang dapat ditulis akun tersebut. Shortcut Start Menu dibuat otomatis; shortcut desktop bersifat opsional. Installer tidak mengganti browser default.
 
@@ -16,7 +16,7 @@ Simpan executable di lokasi yang dapat ditulis. Profil, cookies, cache, bookmark
 
 ## Fitur
 
-- **Fullscreen video:** saat website/video meminta fullscreen, tab dan toolbar disembunyikan dan video memenuhi seluruh layar secara default, termasuk video dalam iframe. Nonaktifkan **Fullscreen video memenuhi layar** melalui menu toolbar atau Setelan untuk memenuhi jendela saat ini saja. Esc mengembalikan ukuran/tampilan sebelumnya. Jika browser sebelumnya sudah dalam mode F11, keluar dari fullscreen video mempertahankan mode F11 tersebut. Membuka tab lain atau menavigasi halaman mengembalikan kontrol browser.
+- **Fullscreen video:** saat website/video meminta fullscreen, tab dan toolbar disembunyikan dan video memenuhi seluruh layar termasuk area taskbar secara default, termasuk video dalam iframe. Nonaktifkan **Fullscreen video memenuhi layar** melalui menu toolbar atau Setelan untuk memenuhi area halaman pada jendela saat ini, dengan toolbar browser dan taskbar tetap terlihat. Esc mengembalikan ukuran/tampilan sebelumnya. Jika browser sebelumnya sudah dalam mode F11, keluar dari fullscreen video mempertahankan mode F11 tersebut. Membuka tab lain atau menavigasi halaman mengembalikan kontrol browser.
 - **Indikator unduhan:** toolbar menampilkan jumlah file aktif dan hasil unduhan baru yang belum dilihat, dengan cincin progres gabungan. Menu unduhan menampilkan persentase dan byte per file. Unduhan tanpa ukuran total memakai indikator berputar. Badge disimpan setelah restart dan dibersihkan saat membuka popover unduhan atau riwayat unduhan lengkap; proses yang masih berjalan tetap dihitung.
 - **Menu toolbar:** tombol menu/Setelan dan perisai pemblokir iklan membuka popover di atas website. Menu menyediakan tindakan cepat, tema, bookmark, opsi fullscreen video, dan akses Setelan lengkap; perisai menyediakan statistik halaman, sakelar global, pengecualian situs, dan setelan lanjutan. Klik lagi, klik di luar, atau Esc untuk menutup. Region Windows mengikuti sudut membulat kontainer tanpa pita di luar; viewport website tetap sama.
 
@@ -164,16 +164,16 @@ Expand-Archive .cache/nsis/nsis-3.13.zip .cache/nsis -Force
 ./scripts/build-installer.ps1
 ```
 
-Hasilnya `AzyCore-Setup-0.1.6-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
+Hasilnya `AzyCore-Setup-0.1.7-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
 
 ## Verifikasi
 
-Delapan belas pemeriksaan `scripts/test-toolbar-media.ps1` memverifikasi migrasi profil lama, popover dan region native tanpa garis luar, toggle/klik luar/Esc/fokus, kontrol pemblokir, akses Setelan lengkap, video memenuhi monitor, pemulihan ukuran dan mode F11, opsi memenuhi jendela, iframe lintas origin, pergantian tab saat fullscreen, byte/progres/jumlah beberapa unduhan, ukuran tidak diketahui, badge belum dilihat, pengakuan lewat riwayat lengkap/popover, dan persistensi setelah dua restart. Video memakai canvas capture stream lokal; permintaan fullscreen asli dilakukan melalui WebView2 dan batas viewport diukur. `scripts/test-released-upgrade.ps1` menguji executable produksi rilis sebelumnya yang benar-benar mengunduh, memverifikasi, mengganti file, dan memulai ulang ke rilis terbaru dari GitHub pada profil terisolasi.
+Dua puluh pemeriksaan `scripts/test-toolbar-media.ps1` memverifikasi migrasi profil lama, popover dan region native tanpa garis luar, toggle/klik luar/Esc/fokus, kontrol pemblokir, akses Setelan lengkap, video menutupi monitor dan area taskbar dari jendela biasa maupun maximized, pelepasan topmost saat berpindah aplikasi, pemulihan ukuran dan mode F11, opsi memenuhi area halaman dengan toolbar dan taskbar tetap terlihat, iframe lintas origin, pergantian tab saat fullscreen, byte/progres/jumlah beberapa unduhan, ukuran tidak diketahui, badge belum dilihat, pengakuan lewat riwayat lengkap/popover, dan persistensi setelah dua restart. Video memakai canvas capture stream lokal; permintaan fullscreen asli dilakukan melalui WebView2 dan batas viewport diukur. `scripts/test-released-upgrade.ps1` menguji executable produksi rilis sebelumnya yang benar-benar mengunduh, memverifikasi, mengganti file, dan memulai ulang ke rilis terbaru dari GitHub pada profil terisolasi.
 
 Pengujian updater `scripts/test-updater.ps1` menjalankan client debug satu versi patch lebih lama pada folder terisolasi, menerima paket produksi versi saat ini yang ditandatangani, lalu benar-benar mengganti executable dan memulai ulang browser. Memeriksa notifikasi, tindakan unduh, verifikasi ulang setelah file diubah, penundaan saat ada unduhan/jendela lain, pemulihan profil/tab/settings/cookies persisten, akses GitHub dari build produksi, dan rollback bila executable pengganti tidak dapat dijalankan. Feed fixture lokal hanya tersedia dalam build debug; build release memakai endpoint GitHub resmi.
 
 
-Pada v0.1.6, build installer dan wizard pemilihan folder berhasil diverifikasi. Uji install/uninstall otomatis tidak diulang karena ada instalasi pengguna yang aktif; instalasi tersebut tidak diubah. Source installer tetap sama seperti versi 0.1.3 yang telah lulus 12 pemeriksaan install/uninstall.
+Pada v0.1.7, build installer dan wizard pemilihan folder berhasil diverifikasi. Uji install/uninstall otomatis tidak diulang karena ada instalasi pengguna yang aktif; instalasi tersebut tidak diubah. Source installer tetap sama seperti versi 0.1.3 yang telah lulus 12 pemeriksaan install/uninstall.
 
 Sepuluh pemeriksaan `scripts/test-instance.ps1` memverifikasi pembukaan file saat belum ada aplikasi, pengalihan selama startup dan ketika sudah berjalan, beberapa file sekaligus, mode privat eksplisit, pemulihan jendela minimized, penolakan token yang salah, deduplikasi pengiriman, jendela terpisah, jendela yang masih terbuka setelah jendela pertama ditutup, isolasi profil, dan pemulihan setelah crash. Komunikasi dibatasi ke loopback dengan token acak per jendela, kunci file eksklusif untuk identitas proses hidup, dan antrean event ke thread UI. Proses penerus keluar sebelum membaca atau menyimpan browser.json.
 
