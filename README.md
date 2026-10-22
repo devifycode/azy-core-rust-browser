@@ -4,7 +4,7 @@ Browser Windows x64 dengan aplikasi native Rust dan mesin Microsoft Edge WebView
 
 ## Menjalankan
 
-Unduh **AzyCore-Setup-0.1.0-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
+Unduh **AzyCore-Setup-0.1.1-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
 
 Jalankan installer, pilih **Lanjut**, lalu **Cari…** pada halaman **Pilih Lokasi Instalasi** untuk menentukan folder. Lokasi default adalah `%LOCALAPPDATA%\Programs\Azy Core`, dengan instalasi untuk akun pengguna saat ini tanpa elevasi administrator. Pilih folder yang dapat ditulis akun tersebut. Shortcut Start Menu dibuat otomatis; shortcut desktop bersifat opsional. Installer tidak mengganti browser default.
 
@@ -12,10 +12,12 @@ Uninstall melalui **Installed apps / Aplikasi terinstal** Windows atau shortcut 
 
 Klik dua kali **AzyCore.exe** di folder ini. Memerlukan Windows 10/11 x64 dan Microsoft Edge WebView2 Runtime. Runtime sudah terdeteksi pada komputer tempat aplikasi ini dibuat. Tidak memerlukan instalasi Rust untuk menjalankan aplikasi.
 
-Simpan executable di lokasi yang dapat ditulis. Profil, cookies, cache, bookmark, sesi, riwayat, dan unduhan disimpan dalam **AzyCore.Data** di samping executable. Unduhan berada di **AzyCore.Data\Downloads**. Logo dan antarmuka sudah ditanam ke executable; file sumber logo tidak harus ikut disalin.
+Simpan executable di lokasi yang dapat ditulis. Profil, cookies, cache, bookmark, sesi, riwayat, dan unduhan disimpan dalam **AzyCore.Data** di samping executable. Secara default setiap unduhan web menampilkan dialog pemilihan folder. Aktifkan **Gunakan folder ini otomatis untuk unduhan berikutnya** untuk memakai folder tetap, atau atur kembali melalui **Setelan → Unduhan**. Jika mode otomatis diaktifkan sebelum memilih folder, lokasi awalnya adalah **AzyCore.Data\Downloads**. Logo dan antarmuka sudah ditanam ke executable; file sumber logo tidak harus ikut disalin.
 
 ## Fitur
 
+- Unduhan web meminta folder tujuan secara default, termasuk pada profil lama dan tab privat. Dialog folder Windows menyediakan checkbox **Gunakan folder ini otomatis untuk unduhan berikutnya**. Jika tidak dicentang, download berikutnya kembali menampilkan dialog; **Batal** membatalkan download sebelum penulisan file. **Setelan → Unduhan** menyediakan folder dan sakelar **Tanyakan lokasi folder setiap download**. Preferensi disimpan setelah restart. Folder otomatis yang tidak dapat digunakan memunculkan pemilih folder kembali, dan file dengan nama sama diberi nomor tanpa menimpa file lama.
+- Dialog ini berlaku pada operasi download yang diteruskan WebView2 ke aplikasi, termasuk popup native. API download background/offscreen ekstensi tertentu berjalan langsung pada profil WebView2: folder otomatisnya diselaraskan, tetapi dialog dan daftar unduhan aplikasi tidak selalu tersedia pada jalur tersebut.
 - Seret tab ke kiri atau kanan untuk mengubah urutannya. Pratinjau tab beserta ikon dan judul mengikuti pointer dengan bayangan, sementara posisi asal diredupkan. Penanda menunjukkan posisi tujuan dan bilah tab bergeser otomatis saat diseret mendekati tepi. Tab dipin tetap dalam kelompok paling kiri; urutan ikut pemulihan sesi.
 - Pasangan split ditempatkan berdampingan di bilah tab dan tetap berdekatan setelah drag, pin/unpin, atau tukar posisi. Memindahkan salah satu tab split ikut memindahkan pasangannya. Jika hanya satu tab pasangan dipin, keduanya bertemu di batas antara kelompok pin dan tab biasa tanpa mengubah preferensi pin. Modal pemilih split memakai region native membulat yang mengikuti kontainernya tanpa pita di luar sisi/sudut.
 - **Split view:** buka dua tab website, klik tombol split di toolbar lalu pilih tab pasangan. Bisa juga klik kanan tab lain dan pilih **Buka berdampingan dengan tab aktif**. Geser pembatas tengah untuk mengatur lebar (25–75%); klik dua kali untuk kembali seimbang. Klik halaman atau tab untuk memilih panel yang dikendalikan kolom alamat, navigasi dan zoom. Menu split menyediakan **Tukar posisi kiri / kanan** serta **Keluar split view**. Menutup satu panel mempertahankan tab pasangannya pada lebar penuh. Pasangan split berlaku selama aplikasi berjalan; memilih tab lain menampilkan tab itu penuh dan memilih salah satu pasangan mengembalikan split. Website biasa dan privat tidak dapat dipasangkan bersama; Home bukan panel split. Kedua halaman yang terlihat tidak ditidurkan oleh penghemat memori.
@@ -79,7 +81,7 @@ Ini browser awal yang dapat digunakan, bukan implementasi penuh Google Chrome. B
 2. Klik ikon puzzle **Ekstensi** → **Setelan lanjutan ekstensi** → **Pilih folder**, atau masukkan lokasi folder dan klik **Pasang**.
 3. Gunakan sakelar **Aktif**, **Hapus**, atau **Opsi ekstensi** bila manifest menyediakan halaman opsi.
 4. Muat ulang tab untuk menerapkan pemasangan atau perubahan status. Menonaktifkan ekstensi tidak membatalkan perubahan DOM yang sudah dilakukan pada dokumen lama.
-5. Kembali ke website, kemudian klik ikon ekstensi di toolbar. Tombol dinonaktifkan pada Home dan tab privat. Popup menjalankan berkas ekstensi asli pada profil website, tanpa akses perintah internal browser. Unduhan ekstensi memakai folder `AzyCore.Data/Downloads`.
+5. Kembali ke website, kemudian klik ikon ekstensi di toolbar. Tombol dinonaktifkan pada Home dan tab privat. Popup menjalankan berkas ekstensi asli pada profil website, tanpa akses perintah internal browser. Folder unduhan profil ekstensi diselaraskan dengan lokasi yang dipilih di Setelan.
 
 Folder sumber tidak disalin oleh WebView2: jangan pindahkan atau ubah isinya setelah pemasangan. Perubahan file sumber dapat membuat runtime melepas ekstensi; pasang kembali dari folder untuk memuat versi lain. File ZIP/CRX perlu disiapkan sebagai folder unpacked lebih dahulu. Manifest V3 dengan content script, background service worker, penyimpanan, halaman opsi dan popup telah diuji; kompatibilitas ekstensi lain mengikuti runtime. Halaman opsi dibuka pada tab ekstensi; popup dibuka dari ikon toolbar tanpa mengganti tab website. Status aktif dan pemasangan bertahan setelah aplikasi dimulai ulang.
 
@@ -148,9 +150,11 @@ Expand-Archive .cache/nsis/nsis-3.13.zip .cache/nsis -Force
 ./scripts/build-installer.ps1
 ```
 
-Hasilnya `AzyCore-Setup-0.1.0-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
+Hasilnya `AzyCore-Setup-0.1.1-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
 
 ## Verifikasi build ini
+
+Empat belas kelompok uji `scripts/test-downloads.ps1` memverifikasi dialog folder native dan checkbox, pembatalan tanpa entri/file baru, hasil download nyata pada path spasi/Unicode, prompt pada download berikutnya, mode otomatis, konflik nama serta identitas unduhan, pengaturan lewat UI, fallback folder bermasalah, download dari popup native, pembatalan perubahan folder, pemulihan preferensi setelah restart, dan download dari tab privat. Unit test juga memeriksa migrasi default profil lama serta nama file/target yang aman. Download API background GLB diuji terpisah dalam mode otomatis pada folder pilihan; pengujian itu tidak mengklaim dialog muncul dari API internal ekstensi.
 
 Installer diuji dengan `scripts/test-installer.ps1`: folder pilihan dengan spasi/Unicode, checksum executable, metadata/atribusi, registrasi uninstall per-user, shortcut Start Menu, perlindungan shortcut desktop lama, startup browser beserta lokasi profil, reinstall, dan uninstall yang mempertahankan profil serta file lain. `scripts/test-installer-wizard.ps1` memverifikasi input lokasi dan tombol **Cari…** pada wizard. Pengujian memakai folder sementara proyek dan menolak menimpa instalasi/registrasi Azy Core yang sudah ada.
 
@@ -164,7 +168,7 @@ Sebelas kelompok uji `scripts/test-browser-update.ps1` memverifikasi saran riway
 
 Lima uji transisi halaman pada `scripts/test-presentation.ps1` lulus: permukaan pemuatan sebelum respons tiba, halaman gelap ditampilkan tanpa menunggu gambar lambat, pemakaian ulang WebView dari tab baru, tema gelap aplikasi, dan fallback respons lambat. Pengujian mengamati batas viewport dan status presentasi dengan fixture lokal; bukan pengukuran frame compositor GPU pada seluruh website. Rekaman laporan pengguna telah diperiksa; warna serta skeleton pemuatan yang dibuat website tetap mengikuti website tersebut.
 
-Build release berhasil; 11 unit test dan 9 kelompok uji integrasi browser lulus. Uji integrasi memverifikasi startup/logo, rendering halaman, penolakan perintah aplikasi dari halaman web, navigasi kembali/maju, bookmark/riwayat, zoom, tab baru/tutup/pulihkan, cookies privat terpisah, unduhan file aktual, halaman internal, dan penyimpanan data. Pemeriksaan DLL menunjukkan executable hanya bergantung pada library sistem Windows; mesin WebView2 tetap harus terpasang. Dialog cetak/file, pintasan keyboard fisik, dan kompatibilitas seluruh situs internet belum diuji menyeluruh.
+Build release berhasil; 12 unit test dan 9 kelompok uji integrasi browser lulus. Uji integrasi memverifikasi startup/logo, rendering halaman, penolakan perintah aplikasi dari halaman web, navigasi kembali/maju, bookmark/riwayat, zoom, tab baru/tutup/pulihkan, cookies privat terpisah, unduhan file aktual, halaman internal, dan penyimpanan data. Pemeriksaan DLL menunjukkan executable hanya bergantung pada library sistem Windows; mesin WebView2 tetap harus terpasang. Dialog cetak/file, pintasan keyboard fisik, dan kompatibilitas seluruh situs internet belum diuji menyeluruh.
 
 Uji ekstensi memakai ekstensi Manifest V3 buatan sendiri pada profil sementara: pemasangan lewat formulir, content script di website, komunikasi dengan service worker, isolasi dari UI aplikasi, halaman opsi, sakelar nonaktif/aktif, penghapusan cookies profil website, isolasi tab privat, status nonaktif setelah restart, dan penghapusan dari profil. Folder picker sistem disediakan melalui Windows FileOpenDialog; otomatisasi memakai formulir lokasi folder. Komponen internal runtime PDF/clipboard tidak ditampilkan sebagai ekstensi pengguna.
 

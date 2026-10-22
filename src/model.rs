@@ -21,6 +21,8 @@ pub struct Entry {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Download {
+    #[serde(default)]
+    pub id: u64,
     pub url: String,
     pub path: String,
     pub status: String,
@@ -37,6 +39,8 @@ pub struct Settings {
     pub memory_saver: bool,
     pub adblock_enabled: bool,
     pub adblock_allowed_sites: Vec<String>,
+    pub download_ask: bool,
+    pub download_directory: String,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -48,6 +52,8 @@ impl Default for Settings {
             memory_saver: true,
             adblock_enabled: true,
             adblock_allowed_sites: Vec::new(),
+            download_ask: true,
+            download_directory: String::new(),
         }
     }
 }
@@ -238,6 +244,8 @@ mod tests {
         assert_eq!(legacy.home.shortcuts.len(), 5);
         assert!(legacy.extensions.is_empty());
         assert!(legacy.settings.dark);
+        assert!(legacy.settings.download_ask);
+        assert!(legacy.settings.download_directory.is_empty());
         let empty: Store = serde_json::from_str(r#"{"home":{"shortcuts":[]}}"#).unwrap();
         assert!(empty.home.shortcuts.is_empty());
         assert!(!empty.home.background_image);

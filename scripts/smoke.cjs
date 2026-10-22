@@ -126,6 +126,8 @@ const server = http.createServer((req, res) => {
   check('Private cookie isolation and exclusion from history');
   const normalId = (await state()).tabs.find(t => !t.private).id;
   await command('switch', { id: normalId });
+  await ui.evaluate('send("settings",{value:{...state.settings,download_ask:false}})');
+  await waitFor(async()=> (await state()).settings.download_ask===false,'automatic download mode for smoke test');
   await content.evaluate('document.querySelector("#download").click()');
   await waitFor(async () => (await state()).downloads.some(d => d.status === 'complete'), 'download');
   const download = (await state()).downloads.find(d => d.status === 'complete');

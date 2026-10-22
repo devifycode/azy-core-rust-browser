@@ -1,11 +1,11 @@
 {
   "application": "Azy Core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "architecture": "Windows x64",
   "executable": "AzyCore.exe",
-  "bytes": 3706368,
-  "sha256": "0798CDE7C2CBFCDC475D1E6FBAD52A04AC59D7A8F579AE66E69B1CF178DE4E7E",
-  "unitTestsPassed": 11,
+  "bytes": 3748864,
+  "sha256": "B46ABED4FE65ADA43B14916F93300A02F99A4EF6B1195D29A2474336A442283A",
+  "unitTestsPassed": 12,
   "integrationGroupsPassed": 9,
   "buildCache": ".cache",
   "buildOutput": "target",
@@ -48,5 +48,13 @@
     "Deferred session tab loading; private/regular mode separation",
     "Split picker rounded native clipping without outside strips",
     "Adjacent split partners maintained during drag, pin/unpin and pane swaps"
+  ],
+  "downloadSelectionChecksPassed": 14,
+  "downloadSelectionTest": "scripts/test-downloads.ps1",
+  "downloadSelectionFeatures": [
+    "Native download-folder dialog by default, including legacy profiles and private tabs",
+    "Remember folder for automatic downloads; settings toggle and folder picker; persisted after restart",
+    "Deferred WebView2 downloads, cancellation before file writes, unique identities and conflict-safe targets",
+    "Background extension profile folder synchronized; direct background APIs can bypass app dialogs"
   ]
 }

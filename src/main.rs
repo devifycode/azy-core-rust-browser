@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod adblock;
+mod downloads;
 mod extensions;
 mod favicon;
 mod model;
@@ -71,7 +72,8 @@ enum Msg {
     Favicon(u64, String, String),
     ZoomChanged(u64, f64),
     Suspended(u64, bool),
-    Download(String, String, String),
+    DownloadRequested(u64),
+    DownloadFinished(u64, bool),
     Key(String),
 }
 struct Tab {
@@ -128,6 +130,7 @@ struct Browser {
     ui_overlay_radius: f64,
     ui_region: Option<String>,
     blocker: Rc<RefCell<adblock::Blocker>>,
+    downloads: downloads::Manager,
 }
 
 impl Tab {
@@ -259,9 +262,7 @@ impl Browser {
     ) -> wry::Result<WebView> {
         let p3 = self.proxy.clone();
         let p4 = self.proxy.clone();
-        let p5 = self.proxy.clone();
-        let p6 = self.proxy.clone();
-        let download_root = self.root.join("Downloads");
+
         let initial = if url == "azy://newtab" {
             "about:blank"
         } else {
@@ -326,46 +327,11 @@ impl Browser {
                 let _ = p4.send_event(Msg::New(u, private));
                 NewWindowResponse::Deny
             })
-            .with_download_started_handler(move |u, path| {
-                let _ = fs::create_dir_all(&download_root);
-                let name = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("download")
-                    .to_string();
-                let name: String = name
-                    .chars()
-                    .map(|c| {
-                        if c.is_control() || "<>:\"/\\|?*".contains(c) {
-                            '_'
-                        } else {
-                            c
-                        }
-                    })
-                    .collect();
-                let mut target = download_root.join(&name);
-                let mut n = 1;
-                while target.exists() {
-                    target = download_root.join(format!("{}-{n}-{}", now(), name));
-                    n += 1;
-                }
-                *path = target;
-                let _ = p5.send_event(Msg::Download(
-                    u,
-                    path.display().to_string(),
-                    "downloading".into(),
-                ));
-                true
-            })
-            .with_download_completed_handler(move |u, path, success| {
-                let _ = p6.send_event(Msg::Download(
-                    u,
-                    path.map(|p| p.display().to_string()).unwrap_or_default(),
-                    if success { "complete" } else { "failed" }.into(),
-                ));
-            })
             .build_as_child(&self.window)?;
         shortcuts(&view, self.proxy.clone());
+        self.downloads
+            .attach(&view.webview(), self.proxy.clone())
+            .map_err(|e| wry::Error::WebView2Error(e.into()))?;
         if popup.is_none() && id != 0 {
             dismiss_popup_on_focus(&view, self.proxy.clone(), id);
         }
@@ -1263,7 +1229,7 @@ impl Browser {
     }
     fn profile_host(&mut self) -> wry::Result<&WebView> {
         if self.extension_host.is_none() {
-            let downloads = self.root.join("Downloads");
+            let downloads = self.download_folder();
             let _ = fs::create_dir_all(&downloads);
             let host = self.create_view(
                 0,
@@ -1271,7 +1237,7 @@ impl Browser {
                 false,
                 Rc::new(RefCell::new(adblock::Page::default())),
             )?;
-            // Extension downloads also use our portable download directory,
+            // Background extension downloads use the selected download directory,
             // including downloads initiated by an offscreen document.
             if let Ok(native) = host.webview().cast::<ICoreWebView2_13>() {
                 unsafe {
@@ -1404,6 +1370,105 @@ impl Browser {
             self.extension_busy = false;
             self.extension_error = error.to_string();
             self.sync();
+        }
+    }
+    fn download_folder(&self) -> PathBuf {
+        if self.store.settings.download_directory.is_empty() {
+            self.root.join("Downloads")
+        } else {
+            PathBuf::from(&self.store.settings.download_directory)
+        }
+    }
+    fn choose_download_folder(
+        &self,
+        name: Option<&str>,
+        remember: bool,
+    ) -> Option<(PathBuf, bool)> {
+        use tao::platform::windows::WindowExtWindows;
+        match downloads::choose_folder(
+            &self.download_folder(),
+            name,
+            remember,
+            windows::Win32::Foundation::HWND(self.window.hwnd() as *mut _),
+        ) {
+            Ok(folder) => folder,
+            Err(error) => {
+                self.toast(&format!("Tidak dapat memilih folder unduhan: {error}"));
+                None
+            }
+        }
+    }
+    fn remember_download_folder(&mut self, folder: PathBuf, automatic: bool) {
+        self.store.settings.download_directory = folder.to_string_lossy().into_owned();
+        self.store.settings.download_ask = !automatic;
+        self.update_download_profile();
+        self.save();
+        self.sync();
+    }
+    fn begin_download(&mut self, id: u64) {
+        diagnostic(&format!("DownloadRequested {id}"));
+        let Some(mut pending) = self.downloads.take(id) else {
+            return;
+        };
+        self.close_chrome_overlays();
+        let folder = self.download_folder();
+        let selection = if self.store.settings.download_ask {
+            self.choose_download_folder(Some(&pending.name), false)
+        } else if downloads::prepare_folder(&folder, id).is_ok() {
+            Some((folder, true))
+        } else {
+            self.toast("Folder unduhan tidak dapat digunakan. Pilih folder lain.");
+            self.choose_download_folder(Some(&pending.name), false)
+        };
+        let Some((folder, automatic)) = selection else {
+            return;
+        };
+        if let Err(error) = downloads::prepare_folder(&folder, id) {
+            self.toast(&format!("Folder unduhan tidak dapat ditulis: {error}"));
+            return;
+        }
+        self.remember_download_folder(folder.clone(), automatic);
+        let reserved: Vec<PathBuf> = self
+            .store
+            .downloads
+            .iter()
+            .filter(|d| d.status == "downloading")
+            .map(|d| PathBuf::from(&d.path))
+            .collect();
+        let path = downloads::target(&folder, &pending.name, &reserved);
+        self.store.downloads.push(Download {
+            id,
+            url: pending.url.clone(),
+            path: path.to_string_lossy().into_owned(),
+            status: "downloading".into(),
+            time: now(),
+        });
+        if let Err(error) = pending.start(&path, id, self.proxy.clone()) {
+            if let Some(download) = self.store.downloads.iter_mut().find(|d| d.id == id) {
+                download.status = "failed".into();
+            }
+            self.toast(&format!("Unduhan tidak dapat dimulai: {error}"));
+        }
+        self.save();
+        self.sync();
+    }
+    fn update_download_profile(&self) {
+        let view = self.extension_host.as_ref().or_else(|| {
+            self.tabs
+                .iter()
+                .filter(|t| !t.private)
+                .find_map(|t| t.view.as_ref())
+        });
+        if let Some(view) = view {
+            if let Ok(native) = view.webview().cast::<ICoreWebView2_13>() {
+                unsafe {
+                    if let Ok(profile) = native.Profile() {
+                        let _ = profile.SetDefaultDownloadFolderPath(
+                            &windows::core::HSTRING::from(self.download_folder().as_os_str()),
+                        );
+                    }
+                }
+            }
         }
     }
     fn pick_extension_folder(&mut self) {
@@ -1760,6 +1825,7 @@ impl Browser {
                         "settings" => {
                             if let Ok(settings) = serde_json::from_value(v["value"].clone()) {
                                 self.store.settings = settings;
+                                self.update_download_profile();
                                 self.update_backgrounds();
                                 self.update_blocker();
                                 if !self.store.settings.memory_saver {
@@ -1996,34 +2062,18 @@ impl Browser {
                 self.layout();
                 self.sync();
             }
-            Msg::Download(u, path, status) => {
-                if let Some(d) = self
-                    .store
-                    .downloads
-                    .iter_mut()
-                    .rev()
-                    .find(|d| d.url == u && d.status == "downloading")
-                {
-                    d.status = status.clone();
-                    if !path.is_empty() {
-                        d.path = path;
-                    }
-                } else {
-                    self.store.downloads.push(Download {
-                        url: u,
-                        path,
-                        status: status.clone(),
-                        time: now(),
+            Msg::DownloadRequested(id) => self.begin_download(id),
+            Msg::DownloadFinished(id, success) => {
+                if let Some(download) = self.store.downloads.iter_mut().find(|d| d.id == id) {
+                    download.status = if success { "complete" } else { "failed" }.into();
+                    self.toast(if success {
+                        "Unduhan selesai. Lihat di menu Unduhan."
+                    } else {
+                        "Unduhan gagal atau dibatalkan."
                     });
+                    self.save();
+                    self.sync();
                 }
-                if status == "complete" {
-                    self.toast("Unduhan selesai. Lihat di menu Unduhan.");
-                }
-                if status == "failed" {
-                    self.toast("Unduhan gagal atau dibatalkan.");
-                }
-                self.save();
-                self.sync();
             }
         }
     }
@@ -2164,11 +2214,21 @@ impl Browser {
                 let _ = self.ui.evaluate_script("showFind()");
             }
             "open-folder" => {
-                let p = self.root.join("Downloads");
+                let p = self.download_folder();
                 let _ = fs::create_dir_all(&p);
                 let _ = std::process::Command::new("explorer.exe").arg(p).spawn();
             }
             "open-file" => self.open_file(),
+            "download-folder" => {
+                self.panel = "settings-page".into();
+                self.layout();
+                if let Some((folder, automatic)) =
+                    self.choose_download_folder(None, !self.store.settings.download_ask)
+                {
+                    self.remember_download_folder(folder, automatic);
+                }
+                self.sync();
+            }
             "clear-cache" => {
                 let result = if let Some(view) = self
                     .tabs
@@ -2349,6 +2409,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         store.settings.adblock_enabled,
         &store.settings.adblock_allowed_sites,
     )));
+    let downloads = downloads::Manager::new(
+        store
+            .downloads
+            .iter()
+            .map(|d| d.id)
+            .max()
+            .unwrap_or(0)
+            .max(now() * 1000)
+            + 1,
+    );
     let mut app = Browser {
         window,
         ui,
@@ -2383,6 +2453,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         ui_overlay_radius: 0.,
         ui_region: None,
         blocker,
+        downloads,
     };
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(url) = args.iter().find(|a| !a.starts_with("--")) {
