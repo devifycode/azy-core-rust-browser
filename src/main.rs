@@ -24,8 +24,9 @@ use tao::{
 };
 use webview2_com::{
     AcceleratorKeyPressedEventHandler, CallDevToolsProtocolMethodCompletedHandler,
-    DOMContentLoadedEventHandler, FaviconChangedEventHandler, FocusChangedEventHandler,
-    GetFaviconCompletedHandler, HistoryChangedEventHandler, Microsoft::Web::WebView2::Win32::*,
+    ContainsFullScreenElementChangedEventHandler, DOMContentLoadedEventHandler,
+    FaviconChangedEventHandler, FocusChangedEventHandler, GetFaviconCompletedHandler,
+    HistoryChangedEventHandler, Microsoft::Web::WebView2::Win32::*,
     NavigationCompletedEventHandler, NavigationStartingEventHandler, SourceChangedEventHandler,
     TrySuspendCompletedHandler, WindowCloseRequestedEventHandler, ZoomFactorChangedEventHandler,
 };
@@ -53,6 +54,8 @@ fn diagnostic(message: &str) {
 }
 #[derive(Debug, Clone)]
 enum Msg {
+    ContentFullscreen(u64, bool),
+    DownloadProgress(u64, u64, u64),
     UpdateChecked(Result<Option<updater::Available>, String>),
     UpdateDownloaded(Result<PathBuf, String>),
     UpdateProgress(u8),
@@ -103,6 +106,7 @@ struct Tab {
     network: Rc<RefCell<adblock::Page>>,
 }
 struct Browser {
+    content_fullscreen: Option<(u64, bool)>,
     update: updater::State,
     update_available: Option<updater::Available>,
     update_plan: Option<PathBuf>,
@@ -426,6 +430,25 @@ impl Browser {
                 let _ = native.add_FaviconChanged(&changed, &mut token);
             }
         }
+        if popup.is_none() && id != 0 {
+            let proxy = self.proxy.clone();
+            let handler =
+                ContainsFullScreenElementChangedEventHandler::create(Box::new(move |view, _| {
+                    if let Some(view) = view {
+                        let mut full = BOOL(0);
+                        unsafe {
+                            view.ContainsFullScreenElement(&mut full)?;
+                        }
+                        let _ = proxy.send_event(Msg::ContentFullscreen(id, full.as_bool()));
+                    }
+                    Ok(())
+                }));
+            unsafe {
+                let mut token = 0;
+                view.webview()
+                    .add_ContainsFullScreenElementChanged(&handler, &mut token)?;
+            }
+        }
         adblock::attach(&view, self.blocker.clone(), network)?;
         view.load_url(initial)?;
         Ok(view)
@@ -484,6 +507,7 @@ impl Browser {
         Ok(())
     }
     fn activate(&mut self, id: u64) {
+        self.leave_content_fullscreen();
         self.close_chrome_overlays();
         self.close_extension_popup();
         self.active = id;
@@ -495,6 +519,7 @@ impl Browser {
         self.sync();
     }
     fn new_tab(&mut self, input: &str, private: bool) -> wry::Result<()> {
+        self.leave_content_fullscreen();
         self.close_chrome_overlays();
         self.close_extension_popup();
         let id = self.add_deferred_tab(input, private);
@@ -509,7 +534,52 @@ impl Browser {
         }
         Ok(())
     }
+    fn leave_content_fullscreen(&mut self) {
+        if let Some((id, was_fullscreen)) = self.content_fullscreen.take() {
+            if let Some(view) = self
+                .tabs
+                .iter()
+                .find(|t| t.id == id)
+                .and_then(|t| t.view.as_ref())
+            {
+                let _ = view.evaluate_script(
+                    "if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})",
+                );
+            }
+            self.window
+                .set_fullscreen(was_fullscreen.then_some(Fullscreen::Borderless(None)));
+            let _ = self.ui.set_visible(true);
+            self.ui_region = None;
+        }
+    }
     fn layout(&mut self) {
+        if let Some((id, _)) = self.content_fullscreen {
+            let size = self
+                .window
+                .inner_size()
+                .to_logical::<f64>(self.window.scale_factor());
+            let _ = self.ui.set_visible(false);
+            if let Some(popup) = &self.extension_popup {
+                let _ = popup.set_visible(false);
+            }
+            for tab in &mut self.tabs {
+                if let Some(view) = &tab.view {
+                    let visible = tab.id == id && !self.window.is_minimized();
+                    if tab.visible != visible {
+                        let _ = view.set_visible(visible);
+                        tab.visible = visible;
+                    }
+                    if visible {
+                        let dimensions = (0., 0., size.width, size.height);
+                        if tab.last_bounds != Some(dimensions) {
+                            let _ = view.set_bounds(bounds(0., 0., size.width, size.height));
+                            tab.last_bounds = Some(dimensions);
+                        }
+                    }
+                }
+            }
+            return;
+        }
         let top = self.top();
         let size = self
             .window
@@ -796,7 +866,13 @@ impl Browser {
             self.toast("Tutup jendela Azy Core lain pada profil ini sebelum memperbarui.");
             return;
         }
+        // Another window may have saved its own session after our cached snapshot.
+        // Persist this window's session explicitly before the updater restarts it.
+        self.last_saved = None;
         self.save();
+        if self.last_saved.is_none() {
+            return;
+        }
         match updater::install(&plan) {
             Ok(()) => {
                 self.update.status = "installing".into();
@@ -890,7 +966,7 @@ impl Browser {
             json!({"id":t.id,"title":t.title,"url":t.url,"private":t.private,"pinned":t.pinned,"loading":t.loading,"back":back.as_bool(),"forward":forward.as_bool(),"zoom":(t.zoom*100.).round(),"favicon":t.favicon,"suspended":t.suspended,"loaded":t.view.is_some(),"presentation_pending":t.view.is_some() && !t.presented && t.url != "azy://newtab","blocked":t.network.borrow().blocked,"adblock":self.blocker.borrow().active_for(&t.url)})
         }).collect();
         let extension_rows: Vec<Value> = self.extension_list.iter().map(|info| json!({"id":info.id,"name":info.name,"enabled":info.enabled,"pinned":self.store.extension_pins.get(&info.id).copied().unwrap_or(true),"source":self.store.extensions.get(&info.id)})).collect();
-        let state = json!({"tabs":tabs,"active":self.active,"split":self.split,"splitRatio":self.split_ratio,"splitVisible":self.split.is_some_and(|ids|ids.contains(&self.active))&&self.panel.is_empty(),"panel":self.panel,"home":self.store.home,"extensions":extension_rows,"extensionPopup":self.extension_popup_id,"storePrepared":self.store_prepared,"extensionBusy":self.extension_busy,"extensionReady":self.extension_ready,"extensionError":self.extension_error,"bookmarks":self.store.bookmarks,"history":self.store.history,"downloads":self.store.downloads,"settings":self.store.settings,"dataPath":self.root.display().to_string(),"update":self.update,"adblockRules":self.blocker.borrow().rule_count()});
+        let state = json!({"tabs":tabs,"active":self.active,"split":self.split,"splitRatio":self.split_ratio,"splitVisible":self.content_fullscreen.is_none()&&self.split.is_some_and(|ids|ids.contains(&self.active))&&self.panel.is_empty(),"panel":self.panel,"home":self.store.home,"extensions":extension_rows,"extensionPopup":self.extension_popup_id,"storePrepared":self.store_prepared,"extensionBusy":self.extension_busy,"extensionReady":self.extension_ready,"extensionError":self.extension_error,"bookmarks":self.store.bookmarks,"history":self.store.history,"downloads":self.store.downloads,"settings":self.store.settings,"dataPath":self.root.display().to_string(),"contentFullscreen":self.content_fullscreen.map(|(id,_)|id),"windowFullscreen":self.window.fullscreen().is_some(),"viewportHeight":self.window.inner_size().height as f64/self.window.scale_factor(),"update":self.update,"adblockRules":self.blocker.borrow().rule_count()});
         let mut previous = self.last_ui_state.borrow_mut();
         let mut changes = serde_json::Map::new();
         for (key, value) in state.as_object().unwrap() {
@@ -1105,6 +1181,7 @@ impl Browser {
         let _ = self.ui.evaluate_script("window.focusAddress()");
     }
     fn navigate(&mut self, input: &str) {
+        self.leave_content_fullscreen();
         if address(input, &self.store.settings.search) == "azy://newtab"
             && self.split.is_some_and(|ids| ids.contains(&self.active))
         {
@@ -1154,6 +1231,7 @@ impl Browser {
         }
     }
     fn close_tab(&mut self, id: u64) {
+        self.leave_content_fullscreen();
         self.close_chrome_overlays();
         self.close_extension_popup();
         let survivor = self.split.filter(|ids| ids.contains(&id)).map(|ids| {
@@ -1525,6 +1603,9 @@ impl Browser {
             path: path.to_string_lossy().into_owned(),
             status: "downloading".into(),
             time: now(),
+            received: 0,
+            total: 0,
+            seen: false,
         });
         if let Err(error) = pending.start(&path, id, self.proxy.clone()) {
             if let Some(download) = self.store.downloads.iter_mut().find(|d| d.id == id) {
@@ -1578,6 +1659,40 @@ impl Browser {
     }
     fn message(&mut self, msg: Msg) {
         match msg {
+            Msg::ContentFullscreen(id, full) => {
+                if full && self.tabs.iter().any(|t| t.id == id && t.visible) {
+                    self.close_chrome_overlays();
+                    self.close_extension_popup();
+                    if self.content_fullscreen.is_none() {
+                        self.content_fullscreen = Some((id, self.window.fullscreen().is_some()));
+                        self.active = id;
+                        if self.store.settings.video_fullscreen {
+                            self.window
+                                .set_fullscreen(Some(Fullscreen::Borderless(None)));
+                        }
+                    }
+                    self.layout();
+                    if let Some(view) = self.current().and_then(|t| t.view.as_ref()) {
+                        let _ = view.focus();
+                    }
+                    self.sync();
+                } else if !full
+                    && self
+                        .content_fullscreen
+                        .is_some_and(|(current, _)| current == id)
+                {
+                    self.leave_content_fullscreen();
+                    self.layout();
+                    self.sync();
+                }
+            }
+            Msg::DownloadProgress(id, received, total) => {
+                if let Some(download) = self.store.downloads.iter_mut().find(|d| d.id == id) {
+                    download.received = received;
+                    download.total = total;
+                    self.sync();
+                }
+            }
             Msg::UpdateChecked(result) => {
                 match result {
                     Ok(Some(available)) => {
@@ -1752,6 +1867,29 @@ impl Browser {
                             }
                             let _ = self.ui.evaluate_script("window.toggleExtensionMenu()");
                         }
+                        "browser-menu" | "adblock-menu" => {
+                            self.close_extension_popup();
+                            self.sync();
+                            let script = if command == "browser-menu" {
+                                "window.toggleBrowserMenu()"
+                            } else {
+                                "window.toggleBlockerMenu()"
+                            };
+                            let _ = self.ui.evaluate_script(script);
+                        }
+                        "download-seen" => {
+                            let mut changed = false;
+                            for download in &mut self.store.downloads {
+                                if download.status != "downloading" && !download.seen {
+                                    download.seen = true;
+                                    changed = true;
+                                }
+                            }
+                            if changed {
+                                self.save();
+                                self.sync();
+                            }
+                        }
                         "download-menu" => {
                             self.close_extension_popup();
                             self.sync();
@@ -1810,7 +1948,7 @@ impl Browser {
                                     && y >= 0.
                                     && w > 0.
                                     && h > 0.
-                                    && h <= 420.
+                                    && h <= 600.
                                 {
                                     Some((x, y, w.min(4096.), h))
                                 } else {
@@ -1986,6 +2124,12 @@ impl Browser {
                         "settings" => {
                             if let Ok(settings) = serde_json::from_value(v["value"].clone()) {
                                 self.store.settings = settings;
+                                if let Some((_, was_fullscreen)) = self.content_fullscreen {
+                                    self.window.set_fullscreen(
+                                        (was_fullscreen || self.store.settings.video_fullscreen)
+                                            .then_some(Fullscreen::Borderless(None)),
+                                    );
+                                }
                                 self.update_download_profile();
                                 self.update_backgrounds();
                                 self.update_blocker();
@@ -2139,6 +2283,13 @@ impl Browser {
                 self.save();
             }
             Msg::NavigationStarted(id, navigation_id, source) => {
+                if self
+                    .content_fullscreen
+                    .is_some_and(|(current, _)| current == id)
+                {
+                    self.leave_content_fullscreen();
+                    self.layout();
+                }
                 if source != "about:blank" {
                     if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == id) {
                         tab.navigation_id = Some(navigation_id);
@@ -2239,6 +2390,22 @@ impl Browser {
         }
     }
     fn command(&mut self, command: &str) {
+        if self.content_fullscreen.is_some()
+            && ![
+                "escape",
+                "fullscreen",
+                "zoom-in",
+                "zoom-out",
+                "zoom-reset",
+                "print",
+                "stop",
+            ]
+            .contains(&command)
+        {
+            self.leave_content_fullscreen();
+            self.layout();
+            self.sync();
+        }
         self.close_chrome_overlays();
         let popup_was_open = self.extension_popup.is_some();
         self.close_extension_popup();
@@ -2337,6 +2504,12 @@ impl Browser {
                 let _ = self.ui.focus();
             }
             "escape" => {
+                if self.content_fullscreen.is_some() {
+                    self.leave_content_fullscreen();
+                    self.layout();
+                    self.sync();
+                    return;
+                }
                 self.close_chrome_overlays();
                 let _ = self
                     .ui
@@ -2350,12 +2523,20 @@ impl Browser {
                 let _ = self.ui.evaluate_script("hideFind()");
             }
             "fullscreen" => {
+                if self.content_fullscreen.is_some() {
+                    self.leave_content_fullscreen();
+                    self.window.set_fullscreen(None);
+                    self.layout();
+                    self.sync();
+                    return;
+                }
                 let full = if self.window.fullscreen().is_some() {
                     None
                 } else {
                     Some(Fullscreen::Borderless(None))
                 };
                 self.window.set_fullscreen(full);
+                self.sync();
             }
             "bookmark" => {
                 if let Some(t) = self.current().filter(|t| t.url != "azy://newtab") {
@@ -2621,6 +2802,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             + 1,
     );
     let mut app = Browser {
+        content_fullscreen: None,
         update: updater::State::default(),
         update_available: None,
         update_plan: None,
@@ -2723,7 +2905,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Event::WindowEvent {
                 event: WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. },
                 ..
-            } => app.layout(),
+            } => {
+                app.layout();
+                app.sync();
+            }
             _ => {}
         }
         if Instant::now() >= app.next_maintenance {

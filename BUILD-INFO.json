@@ -1,11 +1,11 @@
 {
   "application": "Azy Core",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "architecture": "Windows x64",
   "executable": "AzyCore.exe",
-  "bytes": 3978752,
-  "sha256": "31191522ED2F1A7D342CBACADA1EBBA72FEE55817EF7C17B961952A642D20FE9",
-  "unitTestsPassed": 17,
+  "bytes": 4007936,
+  "sha256": "8D4BD321D82CAC38278FEE37733D83734AE085DDC6CFC920F7ACED35A6974B2D",
+  "unitTestsPassed": 18,
   "integrationGroupsPassed": 9,
   "buildCache": ".cache",
   "buildOutput": "target",
@@ -86,5 +86,12 @@
     "Download, verify again, then restart and replace executable directly with rollback; no installer used",
     "Preserves local profile, persistent cookies, bookmarks, settings, downloads and regular tabs; active download and other-window guards",
     "Production ignores local debug fixtures; release signing key remains private and excluded from Git"
+  ],
+  "toolbarMediaChecksPassed": 18,
+  "toolbarMediaTest": "scripts/test-toolbar-media.ps1",
+  "toolbarMediaFeatures": [
+    "Native HTML/video fullscreen fills the display by default; optional full-window mode, iframe support, Escape and prior F11-state restoration",
+    "Download byte counters with throttled native progress, aggregate toolbar ring and counts, per-file progress, unknown-size indication and persisted unread results",
+    "Settings and blocker toolbar popovers with quick actions/toggles, advanced pages, focus/dismissal and exact rounded native clipping"
   ]
 }

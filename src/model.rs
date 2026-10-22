@@ -27,6 +27,15 @@ pub struct Download {
     pub path: String,
     pub status: String,
     pub time: u64,
+    #[serde(default)]
+    pub received: u64,
+    #[serde(default)]
+    pub total: u64,
+    #[serde(default = "download_already_seen")]
+    pub seen: bool,
+}
+fn download_already_seen() -> bool {
+    true
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -41,6 +50,7 @@ pub struct Settings {
     pub adblock_allowed_sites: Vec<String>,
     pub download_ask: bool,
     pub download_directory: String,
+    pub video_fullscreen: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -54,6 +64,7 @@ impl Default for Settings {
             adblock_allowed_sites: Vec::new(),
             download_ask: true,
             download_directory: String::new(),
+            video_fullscreen: true,
         }
     }
 }
@@ -274,6 +285,7 @@ mod tests {
         assert_eq!(legacy.home.shortcuts.len(), 5);
         assert!(legacy.extensions.is_empty());
         assert!(legacy.settings.dark);
+        assert!(legacy.settings.video_fullscreen);
         assert!(legacy.settings.download_ask);
         assert!(legacy.settings.download_directory.is_empty());
         let empty: Store = serde_json::from_str(r#"{"home":{"shortcuts":[]}}"#).unwrap();
@@ -296,6 +308,18 @@ mod tests {
         ] {
             assert!(shortcut_url(invalid).is_none(), "{invalid}");
         }
+    }
+    #[test]
+    fn downloads_migrate_progress_and_notification_state() {
+        let download: Download = serde_json::from_str(
+            r#"{"url":"https://example.com/a","path":"a.txt","status":"complete","time":1}"#,
+        )
+        .unwrap();
+        assert_eq!(download.received, 0);
+        assert_eq!(download.total, 0);
+        assert!(download.seen);
+        let settings: Settings = serde_json::from_str(r#"{"video_fullscreen":false}"#).unwrap();
+        assert!(!settings.video_fullscreen);
     }
     #[test]
     fn persists_without_losing_unicode() {

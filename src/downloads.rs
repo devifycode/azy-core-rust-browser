@@ -5,10 +5,12 @@ use std::{
     fs,
     path::{Path, PathBuf},
     rc::Rc,
+    time::{Duration, Instant},
 };
 use tao::event_loop::EventLoopProxy;
 use webview2_com::{
-    DownloadStartingEventHandler, Microsoft::Web::WebView2::Win32::*, StateChangedEventHandler,
+    BytesReceivedChangedEventHandler, DownloadStartingEventHandler,
+    Microsoft::Web::WebView2::Win32::*, StateChangedEventHandler,
 };
 use windows::{
     core::{Interface, HSTRING},
@@ -41,12 +43,37 @@ impl Pending {
             self.args
                 .SetResultFilePath(&HSTRING::from(path.as_os_str()))?;
             let mut token = 0;
+            let operation = self.args.DownloadOperation()?;
+            let last = Rc::new(Cell::new(Instant::now() - Duration::from_secs(1)));
+            let progress_proxy = proxy.clone();
+            operation.add_BytesReceivedChanged(
+                &BytesReceivedChangedEventHandler::create(Box::new(move |operation, _| {
+                    if let Some(operation) = operation {
+                        let (received, total) = progress(&operation)?;
+                        if last.get().elapsed() >= Duration::from_millis(150)
+                            || (total > 0 && received >= total)
+                        {
+                            last.set(Instant::now());
+                            let _ = progress_proxy
+                                .send_event(Msg::DownloadProgress(id, received, total));
+                        }
+                    }
+                    Ok(())
+                })),
+                &mut token,
+            )?;
+            let (received, total) = progress(&operation)?;
+            let _ = proxy.send_event(Msg::DownloadProgress(id, received, total));
             self.args.DownloadOperation()?.add_StateChanged(
                 &StateChangedEventHandler::create(Box::new(move |operation, _| {
                     if let Some(operation) = operation {
                         let mut state = COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS;
                         operation.State(&mut state)?;
                         if state != COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS {
+                            if let Ok((received, total)) = progress(&operation) {
+                                let _ =
+                                    proxy.send_event(Msg::DownloadProgress(id, received, total));
+                            }
                             let _ = proxy.send_event(Msg::DownloadFinished(
                                 id,
                                 state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED,
@@ -62,6 +89,14 @@ impl Pending {
         }
         Ok(())
     }
+}
+fn progress(operation: &ICoreWebView2DownloadOperation) -> windows::core::Result<(u64, u64)> {
+    let (mut received, mut total) = (0i64, 0i64);
+    unsafe {
+        operation.BytesReceived(&mut received)?;
+        operation.TotalBytesToReceive(&mut total)?;
+    }
+    Ok((received.max(0) as u64, total.max(0) as u64))
 }
 impl Drop for Pending {
     fn drop(&mut self) {
