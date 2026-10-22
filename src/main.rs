@@ -2315,15 +2315,42 @@ impl Browser {
         }
     }
     fn open_file(&mut self) {
-        use windows::Win32::{
-            System::Com::{CoCreateInstance, CoTaskMemFree, CLSCTX_INPROC_SERVER},
-            UI::Shell::{FileOpenDialog, IFileOpenDialog, SIGDN_FILESYSPATH},
+        use tao::platform::windows::WindowExtWindows;
+        use windows::{
+            core::{w, HSTRING},
+            Win32::{
+                Foundation::HWND,
+                System::Com::{CoCreateInstance, CoTaskMemFree, CLSCTX_INPROC_SERVER},
+                UI::Shell::{
+                    Common::COMDLG_FILTERSPEC, FileOpenDialog, IFileOpenDialog, FOS_FILEMUSTEXIST,
+                    FOS_FORCEFILESYSTEM, FOS_NOCHANGEDIR, FOS_PATHMUSTEXIST, SIGDN_FILESYSPATH,
+                },
+            },
         };
         let result: windows::core::Result<String> = unsafe {
             (|| -> windows::core::Result<String> {
                 let dialog: IFileOpenDialog =
                     CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?;
-                dialog.Show(None)?;
+                dialog.SetTitle(&HSTRING::from("Buka file / PDF — Azy Core"))?;
+                dialog.SetOptions(
+                    dialog.GetOptions()?
+                        | FOS_FILEMUSTEXIST
+                        | FOS_PATHMUSTEXIST
+                        | FOS_FORCEFILESYSTEM
+                        | FOS_NOCHANGEDIR,
+                )?;
+                dialog.SetFileTypes(&[
+                    COMDLG_FILTERSPEC {
+                        pszName: w!("Dokumen PDF (*.pdf)"),
+                        pszSpec: w!("*.pdf"),
+                    },
+                    COMDLG_FILTERSPEC {
+                        pszName: w!("Semua file (*.*)"),
+                        pszSpec: w!("*.*"),
+                    },
+                ])?;
+                dialog.SetFileTypeIndex(1)?;
+                dialog.Show(Some(HWND(self.window.hwnd() as *mut _)))?;
                 let name = dialog.GetResult()?.GetDisplayName(SIGDN_FILESYSPATH)?;
                 let value = name.to_string();
                 CoTaskMemFree(Some(name.0 as _));
@@ -2332,10 +2359,15 @@ impl Browser {
                 })
             })()
         };
-        if let Ok(path) = result {
-            if let Ok(u) = url::Url::from_file_path(path) {
-                self.navigate(u.as_str());
+        match result {
+            Ok(path) => {
+                let private = self.current().is_some_and(|t| t.private);
+                if let Err(error) = self.new_tab(&path, private) {
+                    self.toast(&format!("Tidak dapat membuka file: {error}"));
+                }
             }
+            Err(error) if error.code().0 as u32 == 0x800704c7 => {}
+            Err(error) => self.toast(&format!("Tidak dapat memilih file: {error}")),
         }
     }
     fn update_blocker(&self) {

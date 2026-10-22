@@ -177,6 +177,16 @@ pub fn address(input: &str, search: &str) -> String {
     if s.is_empty() || s == "azy://newtab" || s == "about:blank" {
         return "azy://newtab".into();
     }
+    // Windows Explorer's "Copy as path" includes surrounding quotation marks.
+    let path = s
+        .strip_prefix('"')
+        .and_then(|s| s.strip_suffix('"'))
+        .unwrap_or(s);
+    if std::path::Path::new(path).is_absolute() {
+        if let Ok(url) = url::Url::from_file_path(path) {
+            return url.into();
+        }
+    }
     if let Ok(u) = url::Url::parse(s) {
         if matches!(u.scheme(), "http" | "https" | "file")
             || (u.scheme() == "chrome-extension"
@@ -235,6 +245,26 @@ mod tests {
                 .unwrap()
                 .1,
             "a & b"
+        );
+    }
+    #[test]
+    #[cfg(windows)]
+    fn local_paths_preserve_filename_characters() {
+        for input in [
+            r#"C:\Dokumen Saya\laporan #1 ü.pdf"#,
+            r#""C:\Dokumen Saya\laporan #1 ü.pdf""#,
+        ] {
+            let url = url::Url::parse(&address(input, "google")).unwrap();
+            assert_eq!(url.scheme(), "file");
+            assert_eq!(
+                url.to_file_path().unwrap(),
+                std::path::Path::new(r#"C:\Dokumen Saya\laporan #1 ü.pdf"#)
+            );
+            assert!(url.fragment().is_none());
+        }
+        assert_eq!(
+            address(r"\\server\share\report.pdf", "google"),
+            "file://server/share/report.pdf"
         );
     }
     #[test]

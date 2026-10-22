@@ -4,7 +4,7 @@ Browser Windows x64 dengan aplikasi native Rust dan mesin Microsoft Edge WebView
 
 ## Menjalankan
 
-Unduh **AzyCore-Setup-0.1.2-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
+Unduh **AzyCore-Setup-0.1.3-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
 
 Jalankan installer, pilih **Lanjut**, lalu **Cari…** pada halaman **Pilih Lokasi Instalasi** untuk menentukan folder. Lokasi default adalah `%LOCALAPPDATA%\Programs\Azy Core`, dengan instalasi untuk akun pengguna saat ini tanpa elevasi administrator. Pilih folder yang dapat ditulis akun tersebut. Shortcut Start Menu dibuat otomatis; shortcut desktop bersifat opsional. Installer tidak mengganti browser default.
 
@@ -15,6 +15,9 @@ Klik dua kali **AzyCore.exe** di folder ini. Memerlukan Windows 10/11 x64 dan Mi
 Simpan executable di lokasi yang dapat ditulis. Profil, cookies, cache, bookmark, sesi, riwayat, dan unduhan disimpan dalam **AzyCore.Data** di samping executable. Secara default setiap unduhan web menampilkan dialog pemilihan folder. Aktifkan **Gunakan folder ini otomatis untuk unduhan berikutnya** untuk memakai folder tetap, atau atur kembali melalui **Setelan → Unduhan**. Jika mode otomatis diaktifkan sebelum memilih folder, lokasi awalnya adalah **AzyCore.Data\Downloads**. Logo dan antarmuka sudah ditanam ke executable; file sumber logo tidak harus ikut disalin.
 
 ## Fitur
+
+- **PDF lokal:** tekan **Ctrl+O** atau pilih **Menu → Buka file / PDF**, lalu pilih PDF dari perangkat. PDF dibuka di tab baru dengan pembaca bawaan WebView2, termasuk navigasi halaman, pencarian, zoom, cetak, dan simpan. Dialog memilih filter PDF secara awal; ganti ke **Semua file** untuk format lain. Path Windows yang ditempel di kolom alamat (termasuk hasil **Copy as path**), URL `file:///`, dan argumen `AzyCore.exe "C:\Dokumen\laporan.pdf"` juga didukung. Tab baru mengikuti mode privat tab asal; tab PDF biasa mengikuti pemulihan sesi. File tetap dibaca dari lokasi aslinya, sehingga harus tersedia saat dibuka kembali.
+
 
 - Tombol download toolbar membuka popover **Unduhan terbaru** berisi lima file terakhir, terbaru di atas, beserta status dan waktu. Status download yang berlangsung diperbarui saat popover tetap terbuka. Tombol folder pada tiap baris membuka lokasi file, dan **Lihat semua unduhan** membuka daftar lengkap. Klik toolbar lagi, klik di luar, atau Esc untuk menutup. Ctrl+J tetap membuka daftar lengkap. Region native membulat mengikuti kontainer tanpa area/bayangan tambahan di luar modal.
 - Unduhan web meminta folder tujuan secara default, termasuk pada profil lama dan tab privat. Dialog folder Windows menyediakan checkbox **Gunakan folder ini otomatis untuk unduhan berikutnya**. Jika tidak dicentang, download berikutnya kembali menampilkan dialog; **Batal** membatalkan download sebelum penulisan file. **Setelan → Unduhan** menyediakan folder dan sakelar **Tanyakan lokasi folder setiap download**. Preferensi disimpan setelah restart. Folder otomatis yang tidak dapat digunakan memunculkan pemilih folder kembali, dan file dengan nama sama diberi nomor tanpa menimpa file lama.
@@ -151,9 +154,12 @@ Expand-Archive .cache/nsis/nsis-3.13.zip .cache/nsis -Force
 ./scripts/build-installer.ps1
 ```
 
-Hasilnya `AzyCore-Setup-0.1.2-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
+Hasilnya `AzyCore-Setup-0.1.3-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
 
-## Verifikasi build ini
+## Verifikasi
+
+Delapan pemeriksaan `scripts/test-local-pdf.ps1` memverifikasi filter PDF pada dialog Windows, pembatalan, tab baru tanpa mengganti tab asal, nama Unicode/spasi/tanda `#`, rendering PDF dua halaman beserta toolbar, path dengan tanda kutip di kolom alamat tanpa download, tab privat, pemulihan sesi, serta argumen executable. Fixture, profil dan tangkapan layar pengujian berada di `.cache`.
+ build ini
 
 Dua belas kelompok uji `scripts/test-download-menu.ps1` memverifikasi popover toolbar, lima entri terbaru dan judul yang di-escape, status/tombol folder, region native tanpa area di luar sisi/sudut, ukuran website tetap, toggle, klik luar, Esc, daftar lengkap, kondisi kosong, pembaruan status download nyata, eksklusivitas dengan popover ekstensi, tema gelap dan pemulihan setelah restart. File uji serta screenshot disimpan di `.cache` pada profil terpisah.
 
@@ -171,7 +177,7 @@ Sebelas kelompok uji `scripts/test-browser-update.ps1` memverifikasi saran riway
 
 Lima uji transisi halaman pada `scripts/test-presentation.ps1` lulus: permukaan pemuatan sebelum respons tiba, halaman gelap ditampilkan tanpa menunggu gambar lambat, pemakaian ulang WebView dari tab baru, tema gelap aplikasi, dan fallback respons lambat. Pengujian mengamati batas viewport dan status presentasi dengan fixture lokal; bukan pengukuran frame compositor GPU pada seluruh website. Rekaman laporan pengguna telah diperiksa; warna serta skeleton pemuatan yang dibuat website tetap mengikuti website tersebut.
 
-Build release berhasil; 12 unit test dan 9 kelompok uji integrasi browser lulus. Uji integrasi memverifikasi startup/logo, rendering halaman, penolakan perintah aplikasi dari halaman web, navigasi kembali/maju, bookmark/riwayat, zoom, tab baru/tutup/pulihkan, cookies privat terpisah, unduhan file aktual, halaman internal, dan penyimpanan data. Pemeriksaan DLL menunjukkan executable hanya bergantung pada library sistem Windows; mesin WebView2 tetap harus terpasang. Dialog cetak/file, pintasan keyboard fisik, dan kompatibilitas seluruh situs internet belum diuji menyeluruh.
+Build release berhasil; 13 unit test dan 9 kelompok uji integrasi browser lulus. Uji integrasi memverifikasi startup/logo, rendering halaman, penolakan perintah aplikasi dari halaman web, navigasi kembali/maju, bookmark/riwayat, zoom, tab baru/tutup/pulihkan, cookies privat terpisah, unduhan file aktual, halaman internal, dan penyimpanan data. Pemeriksaan DLL menunjukkan executable hanya bergantung pada library sistem Windows; mesin WebView2 tetap harus terpasang. Dialog cetak, pintasan keyboard fisik, dan kompatibilitas seluruh situs internet belum diuji menyeluruh.
 
 Uji ekstensi memakai ekstensi Manifest V3 buatan sendiri pada profil sementara: pemasangan lewat formulir, content script di website, komunikasi dengan service worker, isolasi dari UI aplikasi, halaman opsi, sakelar nonaktif/aktif, penghapusan cookies profil website, isolasi tab privat, status nonaktif setelah restart, dan penghapusan dari profil. Folder picker sistem disediakan melalui Windows FileOpenDialog; otomatisasi memakai formulir lokasi folder. Komponen internal runtime PDF/clipboard tidak ditampilkan sebagai ekstensi pengguna.
 

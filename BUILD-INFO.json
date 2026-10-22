@@ -1,11 +1,11 @@
 {
   "application": "Azy Core",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "architecture": "Windows x64",
   "executable": "AzyCore.exe",
-  "bytes": 3754496,
-  "sha256": "3FC95CD872B2BE7807745C3B320F3A7DF5E986E06EE196491F346A212D3CB835",
-  "unitTestsPassed": 12,
+  "bytes": 3756544,
+  "sha256": "C7572A58ABC856B46EF96D6024C121F672C984C85D98544FA11E4B88D1626C47",
+  "unitTestsPassed": 13,
   "integrationGroupsPassed": 9,
   "buildCache": ".cache",
   "buildOutput": "target",
@@ -63,5 +63,12 @@
     "Toolbar toggles five recent downloads with live status and per-file folder access",
     "Full history via footer or Ctrl+J; keyboard focus restored on dismissal",
     "Rounded native region and no shadow or outside strips; no website resizing"
+  ],
+  "localPdfChecksPassed": 8,
+  "localPdfTest": "scripts/test-local-pdf.ps1",
+  "localPdfFeatures": [
+    "Native file picker with PDF filter; new tab preserves previous page and privacy mode",
+    "Local Windows paths including quoted Unicode names, file URLs, executable arguments and restored sessions",
+    "Built-in WebView2 PDF reader renders documents inline with page navigation, find, zoom, print and save"
   ]
 }
