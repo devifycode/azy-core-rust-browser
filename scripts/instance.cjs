@@ -1,0 +1,32 @@
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),net=require('node:net'),assert=require('node:assert/strict');
+const {pathToFileURL}=require('node:url');
+const {CDP,targets,waitFor,delay}=require('./cdp.cjs');
+const root=process.env.AZY_CORE_DATA_DIR,exe=path.resolve('target/release/AzyCore.exe'),fixture=path.join(root,'Laporan #1 ü.pdf'),second=path.join(root,'Laporan kedua.pdf');
+fs.copyFileSync(fixture,second);
+const children=[],clients=[],checks=[];
+const launch=(args,profile=root)=>{const child=cp.spawn(exe,args,{windowsHide:true,stdio:'ignore',env:{...process.env,AZY_CORE_DATA_DIR:profile}});children.push(child);return child};
+const exited=child=>waitFor(()=>child.exitCode!==null||child.signalCode!==null,'secondary process exited',20000);
+const check=s=>{checks.push(s);console.log('PASS',s)};
+const endpoints=()=>fs.readdirSync(path.join(root,'Launch')).filter(f=>f.endsWith('.json')).map(f=>JSON.parse(fs.readFileSync(path.join(root,'Launch',f))));
+const state=ui=>ui.evaluate('JSON.parse(JSON.stringify(state))');
+const command=(ui,c,v={})=>ui.evaluate(`send(${JSON.stringify(c)},${JSON.stringify(v)})`);
+async function windowUi(predicate){return waitFor(async()=>{for(const t of await targets()){if(t.type!=='page')continue;const c=new CDP(t.webSocketDebuggerUrl);try{if(await c.evaluate('typeof receive==="function"')&&predicate(await state(c))){clients.push(c);return c}}catch{}c.close()}},'matching browser window')}
+const minimized=(pid,minimize=false)=>cp.execFileSync('powershell.exe',['-NoProfile','-Command',`Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class AzyMinimized{[DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr h,int n);}'; $p=Get-Process -Id ${pid}; if($p.MainWindowHandle -eq 0){throw 'Test window missing'}; ${minimize?'[void][AzyMinimized]::ShowWindowAsync($p.MainWindowHandle,6); Start-Sleep -Milliseconds 200;':''} [AzyMinimized]::IsIconic($p.MainWindowHandle)`],{encoding:'utf8',windowsHide:true}).trim();
+const untilTabs=(ui,count)=>waitFor(async()=>{const s=await state(ui);return s.tabs.length===count&&s.tabs.every(t=>!t.loading&&!t.presentation_pending)},'requested tabs visible');
+const packet=(endpoint,request)=>new Promise((resolve,reject)=>{const client=net.createConnection({host:'127.0.0.1',port:endpoint.port});let reply='';client.setTimeout(4000,()=>client.destroy(new Error('Broker reply timeout')));client.on('connect',()=>client.end(JSON.stringify(request)+'\n'));client.on('data',chunk=>reply+=chunk);client.on('end',()=>resolve(reply));client.on('error',reject)});
+(async()=>{
+ const original=launch([fixture]);await waitFor(()=>{try{return endpoints().some(e=>e.pid===original.pid)}catch{}},'first launch registered');
+ const early=launch([second]);await exited(early);assert.equal(early.exitCode,0);
+ const ui=await windowUi(s=>s.tabs?.some(t=>t.url===pathToFileURL(second).href));await untilTabs(ui,2);assert.equal(original.exitCode,null);check('PDF starts Azy Core when absent; a second launch during startup reuses that process');
+ let count=2;const warm=launch([fixture,second]);await exited(warm);assert.equal(warm.exitCode,0);await untilTabs(ui,count+=2);assert.equal(endpoints().length,1);check('Explorer-style invocation opens each file in an existing window without an additional browser window');
+ const before=await state(ui);const privateLaunch=launch(['--private',fixture]);await exited(privateLaunch);await untilTabs(ui,++count);const privateState=await state(ui);assert.equal(privateState.tabs.find(t=>t.id===privateState.active).private,true);assert.equal(privateState.tabs.filter(t=>!t.private).length,before.tabs.length);check('Explicit private launch retains private tabs and does not inherit privacy accidentally');
+ assert.equal(minimized(original.pid,true),'True');const restore=launch([second]);await exited(restore);await untilTabs(ui,++count);
+ assert.equal(minimized(original.pid),'False');check('File handoff restores a minimized Azy Core window');
+ const endpoint=endpoints()[0];await packet(endpoint,{token:'incorrect',id:'unauthorized',inputs:[fixture],private:false});await delay(200);assert.equal((await state(ui)).tabs.length,count);check('Launch broker rejects requests without the random per-window token');
+ const request={token:endpoint.token,id:'same-request-test',inputs:[fixture],private:false};assert.equal(await packet(endpoint,request),'OK');assert.equal(await packet(endpoint,request),'OK');await untilTabs(ui,++count);check('Retried delivery opens a file exactly once');
+ const separate=launch(['--new-window',second]);await waitFor(()=>endpoints().some(e=>e.pid===separate.pid),'explicit separate window');const otherUi=await windowUi(s=>s.tabs?.length===1&&s.tabs[0].url===pathToFileURL(second).href);await untilTabs(otherUi,1);assert.equal(separate.exitCode,null);check('Explicit new-window command remains available');
+ await command(ui,'quit');await exited(original);const reuseSurvivor=launch([fixture]);await exited(reuseSurvivor);await untilTabs(otherUi,2);assert.equal(separate.exitCode,null);check('Files reuse a surviving window even after the original window closes');
+ const otherProfile=path.join(root,'OtherProfile');fs.mkdirSync(otherProfile);const isolated=launch([fixture],otherProfile);await waitFor(()=>{try{return fs.readdirSync(path.join(otherProfile,'Launch')).some(f=>f.endsWith('.json'))}catch{}},'independent profile');await delay(500);assert.equal(isolated.exitCode,null);assert.equal((await state(otherUi)).tabs.length,2);isolated.kill();await exited(isolated);check('Separate profiles do not receive one another\'s file requests');
+ separate.kill();await exited(separate);const recovery=launch([fixture]);const recoveredUi=await windowUi(s=>s.tabs?.length===1&&s.tabs[0].url===pathToFileURL(fixture).href);await untilTabs(recoveredUi,1);assert.equal(recovery.exitCode,null);assert.equal(endpoints().length,1);check('Stale broker registrations after a crash are cleaned up and a new browser starts');
+ await command(recoveredUi,'quit');await exited(recovery);fs.writeFileSync(path.resolve('.cache/instance-results.json'),JSON.stringify({checksPassed:checks.length,checks},null,2)+'\n');
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>{clients.forEach(c=>c.close());for(const child of children)if(child.exitCode===null&&child.signalCode===null)child.kill()});

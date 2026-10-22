@@ -1,10 +1,10 @@
 {
   "application": "Azy Core",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "architecture": "Windows x64",
   "executable": "AzyCore.exe",
-  "bytes": 3756544,
-  "sha256": "C7572A58ABC856B46EF96D6024C121F672C984C85D98544FA11E4B88D1626C47",
+  "bytes": 3798016,
+  "sha256": "1856135B923DB233E7E9463DBBE643B9A2A097E9D91C9521DBF63198165542FD",
   "unitTestsPassed": 13,
   "integrationGroupsPassed": 9,
   "buildCache": ".cache",
@@ -70,5 +70,12 @@
     "Native file picker with PDF filter; new tab preserves previous page and privacy mode",
     "Local Windows paths including quoted Unicode names, file URLs, executable arguments and restored sessions",
     "Built-in WebView2 PDF reader renders documents inline with page navigation, find, zoom, print and save"
+  ],
+  "instanceHandoffChecksPassed": 10,
+  "instanceHandoffTest": "scripts/test-instance.ps1",
+  "instanceHandoffFeatures": [
+    "Explorer launches reuse an existing window within the same profile, or start a browser if absent",
+    "Authenticated loopback broker with exclusive per-window file locks, startup serialization and retry deduplication",
+    "Restore minimized windows; multiple file arguments; private/new-window options; surviving-window reuse and stale-registration cleanup"
   ]
 }

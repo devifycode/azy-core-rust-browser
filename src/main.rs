@@ -3,6 +3,7 @@ mod adblock;
 mod downloads;
 mod extensions;
 mod favicon;
+mod instance;
 mod model;
 mod webstore;
 use model::{address, now, Download, Entry, Store};
@@ -51,6 +52,7 @@ fn diagnostic(message: &str) {
 }
 #[derive(Debug, Clone)]
 enum Msg {
+    ExternalOpen(Vec<String>, bool),
     StorePrepared(Result<webstore::Prepared, String>),
     ExtensionPopupReady(u64, u64, String, i64),
     ExtensionPopupClose(u64),
@@ -1495,6 +1497,16 @@ impl Browser {
     }
     fn message(&mut self, msg: Msg) {
         match msg {
+            Msg::ExternalOpen(inputs, private) => {
+                for input in inputs {
+                    if let Err(error) = self.new_tab(&input, private) {
+                        self.toast(&format!("Tidak dapat membuka file: {error}"));
+                    }
+                }
+                self.window.set_visible(true);
+                self.window.set_minimized(false);
+                self.window.set_focus();
+            }
             Msg::ContentFocused(id) => {
                 if id != self.active
                     && self
@@ -2397,15 +2409,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         });
     fs::create_dir_all(&root)?;
     diagnostic("Profile ready");
+    let event_loop = EventLoopBuilder::<Msg>::with_user_event().build();
+    diagnostic("Event loop ready");
+    let proxy = event_loop.create_proxy();
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let instance = match instance::start(&root, &args, proxy.clone())? {
+        instance::Launch::Forwarded => return Ok(()),
+        instance::Launch::Primary(instance) => Some(instance),
+    };
     let mut store = Store::read(&root.join("browser.json"));
     for d in &mut store.downloads {
         if d.status == "downloading" {
             d.status = "interrupted".into();
         }
     }
-    let event_loop = EventLoopBuilder::<Msg>::with_user_event().build();
-    diagnostic("Event loop ready");
-    let proxy = event_loop.create_proxy();
     let icon_image =
         image::load_from_memory(include_bytes!(concat!(env!("OUT_DIR"), "/logo-ui.png")))?
             .resize(64, 64, image::imageops::FilterType::Lanczos3)
@@ -2509,9 +2526,15 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         blocker,
         downloads,
     };
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    if let Some(url) = args.iter().find(|a| !a.starts_with("--")) {
-        app.new_tab(url, args.iter().any(|a| a == "--private"))?;
+    let inputs: Vec<_> = args
+        .iter()
+        .filter(|a| !a.starts_with("--"))
+        .take(32)
+        .collect();
+    if !inputs.is_empty() {
+        for input in inputs {
+            app.new_tab(input, args.iter().any(|a| a == "--private"))?;
+        }
     } else if args.iter().any(|a| a == "--private") {
         app.new_tab("", true)?;
     } else if !session.is_empty() && !args.iter().any(|a| a == "--new-window") {
@@ -2533,6 +2556,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     diagnostic("Initial tab ready; running");
     event_loop.run(move |event, _, control_flow| {
+        let _keep_instance = &instance;
         *control_flow = ControlFlow::WaitUntil(app.next_maintenance);
         match event {
             Event::UserEvent(msg) => {

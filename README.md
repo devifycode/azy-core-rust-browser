@@ -4,7 +4,7 @@ Browser Windows x64 dengan aplikasi native Rust dan mesin Microsoft Edge WebView
 
 ## Menjalankan
 
-Unduh **AzyCore-Setup-0.1.3-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
+Unduh **AzyCore-Setup-0.1.4-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
 
 Jalankan installer, pilih **Lanjut**, lalu **Cari…** pada halaman **Pilih Lokasi Instalasi** untuk menentukan folder. Lokasi default adalah `%LOCALAPPDATA%\Programs\Azy Core`, dengan instalasi untuk akun pengguna saat ini tanpa elevasi administrator. Pilih folder yang dapat ditulis akun tersebut. Shortcut Start Menu dibuat otomatis; shortcut desktop bersifat opsional. Installer tidak mengganti browser default.
 
@@ -15,6 +15,9 @@ Klik dua kali **AzyCore.exe** di folder ini. Memerlukan Windows 10/11 x64 dan Mi
 Simpan executable di lokasi yang dapat ditulis. Profil, cookies, cache, bookmark, sesi, riwayat, dan unduhan disimpan dalam **AzyCore.Data** di samping executable. Secara default setiap unduhan web menampilkan dialog pemilihan folder. Aktifkan **Gunakan folder ini otomatis untuk unduhan berikutnya** untuk memakai folder tetap, atau atur kembali melalui **Setelan → Unduhan**. Jika mode otomatis diaktifkan sebelum memilih folder, lokasi awalnya adalah **AzyCore.Data\Downloads**. Logo dan antarmuka sudah ditanam ke executable; file sumber logo tidak harus ikut disalin.
 
 ## Fitur
+
+- PDF yang dibuka dari **Windows Explorer → Open with → Azy Core** diteruskan ke jendela Azy Core yang sudah berjalan pada profil yang sama, sebagai tab baru. Jika belum ada jendela, aplikasi dijalankan. Jendela yang diminimalkan ditampilkan kembali; beberapa file dapat diteruskan sekaligus. Permintaan biasa membuka tab biasa, sedangkan argumen `--private` meminta tab privat. `--new-window` tetap membuat jendela terpisah. Setelah memperbarui dari versi sebelum 0.1.4, tutup dan buka kembali Azy Core agar penerima file aktif.
+
 
 - **PDF lokal:** tekan **Ctrl+O** atau pilih **Menu → Buka file / PDF**, lalu pilih PDF dari perangkat. PDF dibuka di tab baru dengan pembaca bawaan WebView2, termasuk navigasi halaman, pencarian, zoom, cetak, dan simpan. Dialog memilih filter PDF secara awal; ganti ke **Semua file** untuk format lain. Path Windows yang ditempel di kolom alamat (termasuk hasil **Copy as path**), URL `file:///`, dan argumen `AzyCore.exe "C:\Dokumen\laporan.pdf"` juga didukung. Tab baru mengikuti mode privat tab asal; tab PDF biasa mengikuti pemulihan sesi. File tetap dibaca dari lokasi aslinya, sehingga harus tersedia saat dibuka kembali.
 
@@ -154,12 +157,16 @@ Expand-Archive .cache/nsis/nsis-3.13.zip .cache/nsis -Force
 ./scripts/build-installer.ps1
 ```
 
-Hasilnya `AzyCore-Setup-0.1.3-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
+Hasilnya `AzyCore-Setup-0.1.4-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
 
 ## Verifikasi
 
+Pada v0.1.4, build installer dan wizard pemilihan folder berhasil diverifikasi. Uji install/uninstall otomatis tidak diulang karena ada instalasi pengguna yang aktif; instalasi tersebut tidak diubah. Source installer tetap sama seperti versi 0.1.3 yang telah lulus 12 pemeriksaan install/uninstall.
+
+Sepuluh pemeriksaan `scripts/test-instance.ps1` memverifikasi pembukaan file saat belum ada aplikasi, pengalihan selama startup dan ketika sudah berjalan, beberapa file sekaligus, mode privat eksplisit, pemulihan jendela minimized, penolakan token yang salah, deduplikasi pengiriman, jendela terpisah, jendela yang masih terbuka setelah jendela pertama ditutup, isolasi profil, dan pemulihan setelah crash. Komunikasi dibatasi ke loopback dengan token acak per jendela, kunci file eksklusif untuk identitas proses hidup, dan antrean event ke thread UI. Proses penerus keluar sebelum membaca atau menyimpan browser.json.
+
+
 Delapan pemeriksaan `scripts/test-local-pdf.ps1` memverifikasi filter PDF pada dialog Windows, pembatalan, tab baru tanpa mengganti tab asal, nama Unicode/spasi/tanda `#`, rendering PDF dua halaman beserta toolbar, path dengan tanda kutip di kolom alamat tanpa download, tab privat, pemulihan sesi, serta argumen executable. Fixture, profil dan tangkapan layar pengujian berada di `.cache`.
- build ini
 
 Dua belas kelompok uji `scripts/test-download-menu.ps1` memverifikasi popover toolbar, lima entri terbaru dan judul yang di-escape, status/tombol folder, region native tanpa area di luar sisi/sudut, ukuran website tetap, toggle, klik luar, Esc, daftar lengkap, kondisi kosong, pembaruan status download nyata, eksklusivitas dengan popover ekstensi, tema gelap dan pemulihan setelah restart. File uji serta screenshot disimpan di `.cache` pada profil terpisah.
 

@@ -1,7 +1,7 @@
 #include <winver.h>
 1 VERSIONINFO
-FILEVERSION 0,1,3,0
-PRODUCTVERSION 0,1,3,0
+FILEVERSION 0,1,4,0
+PRODUCTVERSION 0,1,4,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0x0L
 FILEOS 0x40004L
@@ -13,11 +13,11 @@ BEGIN
   BEGIN
    VALUE "CompanyName", "Azy Creative\0"
    VALUE "FileDescription", "Azy Core Browser\0"
-   VALUE "FileVersion", "0.1.3\0"
+   VALUE "FileVersion", "0.1.4\0"
    VALUE "InternalName", "AzyCore\0"
    VALUE "OriginalFilename", "AzyCore.exe\0"
    VALUE "ProductName", "Azy Core\0"
-   VALUE "ProductVersion", "0.1.3\0"
+   VALUE "ProductVersion", "0.1.4\0"
   END
  END
  BLOCK "VarFileInfo"
