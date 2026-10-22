@@ -4,7 +4,7 @@ Browser Windows x64 dengan aplikasi native Rust dan mesin Microsoft Edge WebView
 
 ## Menjalankan
 
-Unduh **AzyCore-Setup-0.1.1-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
+Unduh **AzyCore-Setup-0.1.2-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
 
 Jalankan installer, pilih **Lanjut**, lalu **Cari…** pada halaman **Pilih Lokasi Instalasi** untuk menentukan folder. Lokasi default adalah `%LOCALAPPDATA%\Programs\Azy Core`, dengan instalasi untuk akun pengguna saat ini tanpa elevasi administrator. Pilih folder yang dapat ditulis akun tersebut. Shortcut Start Menu dibuat otomatis; shortcut desktop bersifat opsional. Installer tidak mengganti browser default.
 
@@ -16,6 +16,7 @@ Simpan executable di lokasi yang dapat ditulis. Profil, cookies, cache, bookmark
 
 ## Fitur
 
+- Tombol download toolbar membuka popover **Unduhan terbaru** berisi lima file terakhir, terbaru di atas, beserta status dan waktu. Status download yang berlangsung diperbarui saat popover tetap terbuka. Tombol folder pada tiap baris membuka lokasi file, dan **Lihat semua unduhan** membuka daftar lengkap. Klik toolbar lagi, klik di luar, atau Esc untuk menutup. Ctrl+J tetap membuka daftar lengkap. Region native membulat mengikuti kontainer tanpa area/bayangan tambahan di luar modal.
 - Unduhan web meminta folder tujuan secara default, termasuk pada profil lama dan tab privat. Dialog folder Windows menyediakan checkbox **Gunakan folder ini otomatis untuk unduhan berikutnya**. Jika tidak dicentang, download berikutnya kembali menampilkan dialog; **Batal** membatalkan download sebelum penulisan file. **Setelan → Unduhan** menyediakan folder dan sakelar **Tanyakan lokasi folder setiap download**. Preferensi disimpan setelah restart. Folder otomatis yang tidak dapat digunakan memunculkan pemilih folder kembali, dan file dengan nama sama diberi nomor tanpa menimpa file lama.
 - Dialog ini berlaku pada operasi download yang diteruskan WebView2 ke aplikasi, termasuk popup native. API download background/offscreen ekstensi tertentu berjalan langsung pada profil WebView2: folder otomatisnya diselaraskan, tetapi dialog dan daftar unduhan aplikasi tidak selalu tersedia pada jalur tersebut.
 - Seret tab ke kiri atau kanan untuk mengubah urutannya. Pratinjau tab beserta ikon dan judul mengikuti pointer dengan bayangan, sementara posisi asal diredupkan. Penanda menunjukkan posisi tujuan dan bilah tab bergeser otomatis saat diseret mendekati tepi. Tab dipin tetap dalam kelompok paling kiri; urutan ikut pemulihan sesi.
@@ -150,9 +151,11 @@ Expand-Archive .cache/nsis/nsis-3.13.zip .cache/nsis -Force
 ./scripts/build-installer.ps1
 ```
 
-Hasilnya `AzyCore-Setup-0.1.1-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
+Hasilnya `AzyCore-Setup-0.1.2-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
 
 ## Verifikasi build ini
+
+Dua belas kelompok uji `scripts/test-download-menu.ps1` memverifikasi popover toolbar, lima entri terbaru dan judul yang di-escape, status/tombol folder, region native tanpa area di luar sisi/sudut, ukuran website tetap, toggle, klik luar, Esc, daftar lengkap, kondisi kosong, pembaruan status download nyata, eksklusivitas dengan popover ekstensi, tema gelap dan pemulihan setelah restart. File uji serta screenshot disimpan di `.cache` pada profil terpisah.
 
 Empat belas kelompok uji `scripts/test-downloads.ps1` memverifikasi dialog folder native dan checkbox, pembatalan tanpa entri/file baru, hasil download nyata pada path spasi/Unicode, prompt pada download berikutnya, mode otomatis, konflik nama serta identitas unduhan, pengaturan lewat UI, fallback folder bermasalah, download dari popup native, pembatalan perubahan folder, pemulihan preferensi setelah restart, dan download dari tab privat. Unit test juga memeriksa migrasi default profil lama serta nama file/target yang aman. Download API background GLB diuji terpisah dalam mode otomatis pada folder pilihan; pengujian itu tidak mengklaim dialog muncul dari API internal ekstensi.
 

@@ -1613,6 +1613,28 @@ impl Browser {
                             }
                             let _ = self.ui.evaluate_script("window.toggleExtensionMenu()");
                         }
+                        "download-menu" => {
+                            self.close_extension_popup();
+                            self.sync();
+                            let _ = self.ui.evaluate_script("window.toggleDownloadMenu()");
+                        }
+                        "download-show-folder" => {
+                            self.close_chrome_overlays();
+                            if let Some(download) = v["index"]
+                                .as_u64()
+                                .and_then(|i| self.store.downloads.get(i as usize))
+                            {
+                                let path = PathBuf::from(&download.path);
+                                if let Some(folder) = path.parent().filter(|p| p.is_dir()) {
+                                    let _ = std::process::Command::new("explorer.exe")
+                                        .arg(folder)
+                                        .spawn();
+                                } else {
+                                    self.toast("Folder unduhan tidak ditemukan.");
+                                }
+                            }
+                            self.layout();
+                        }
                         "extension-store" => self.prepare_store(text),
                         "extension-store-confirm" => self.confirm_store(),
                         "extension-store-cancel" => {

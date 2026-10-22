@@ -1,10 +1,10 @@
 {
   "application": "Azy Core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "architecture": "Windows x64",
   "executable": "AzyCore.exe",
-  "bytes": 3748864,
-  "sha256": "B46ABED4FE65ADA43B14916F93300A02F99A4EF6B1195D29A2474336A442283A",
+  "bytes": 3754496,
+  "sha256": "3FC95CD872B2BE7807745C3B320F3A7DF5E986E06EE196491F346A212D3CB835",
   "unitTestsPassed": 12,
   "integrationGroupsPassed": 9,
   "buildCache": ".cache",
@@ -56,5 +56,12 @@
     "Remember folder for automatic downloads; settings toggle and folder picker; persisted after restart",
     "Deferred WebView2 downloads, cancellation before file writes, unique identities and conflict-safe targets",
     "Background extension profile folder synchronized; direct background APIs can bypass app dialogs"
+  ],
+  "recentDownloadMenuChecksPassed": 12,
+  "recentDownloadMenuTest": "scripts/test-download-menu.ps1",
+  "recentDownloadMenuFeatures": [
+    "Toolbar toggles five recent downloads with live status and per-file folder access",
+    "Full history via footer or Ctrl+J; keyboard focus restored on dismissal",
+    "Rounded native region and no shadow or outside strips; no website resizing"
   ]
 }
