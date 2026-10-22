@@ -4,7 +4,11 @@ Browser Windows x64 dengan aplikasi native Rust dan mesin Microsoft Edge WebView
 
 ## Menjalankan
 
-Unduh **AzyCore.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest). Executable tersedia sebagai aset release; repository berisi kode sumber dan skrip pengujian. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
+Unduh **AzyCore-Setup-0.1.0-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
+
+Jalankan installer, pilih **Lanjut**, lalu **Cari…** pada halaman **Pilih Lokasi Instalasi** untuk menentukan folder. Lokasi default adalah `%LOCALAPPDATA%\Programs\Azy Core`, dengan instalasi untuk akun pengguna saat ini tanpa elevasi administrator. Pilih folder yang dapat ditulis akun tersebut. Shortcut Start Menu dibuat otomatis; shortcut desktop bersifat opsional. Installer tidak mengganti browser default.
+
+Uninstall melalui **Installed apps / Aplikasi terinstal** Windows atau shortcut **Uninstall Azy Core**. Uninstaller menghapus file aplikasi dan shortcut miliknya, serta mempertahankan `AzyCore.Data` dan file lain di folder pilihan. Memasang ulang ke folder yang sama mempertahankan profil. Microsoft Edge WebView2 Runtime perlu tersedia; runtime tidak dibundel dalam installer.
 
 Klik dua kali **AzyCore.exe** di folder ini. Memerlukan Windows 10/11 x64 dan Microsoft Edge WebView2 Runtime. Runtime sudah terdeteksi pada komputer tempat aplikasi ini dibuat. Tidak memerlukan instalasi Rust untuk menjalankan aplikasi.
 
@@ -132,7 +136,23 @@ Skrip integrasi `scripts/smoke.cjs` menguji executable melalui endpoint DevTools
 
 Sumber teknologi: [Wry](https://github.com/tauri-apps/wry), [Tao](https://github.com/tauri-apps/tao), [Microsoft WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/).
 
+## Build installer
+
+Installer memakai [NSIS portable](https://nsis.sourceforge.io/Download) tanpa memasang compiler ke sistem. Setelah `AzyCore.exe` cocok dengan checksum dalam `BUILD-INFO.json`, siapkan compiler di cache proyek:
+
+```powershell
+New-Item -ItemType Directory -Force .cache/nsis | Out-Null
+curl.exe --fail --location 'https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip' -o .cache/nsis/nsis-3.13.zip
+if ((Get-FileHash .cache/nsis/nsis-3.13.zip).Hash -ne 'BA63DFFC4410EE89193E1CB5A41989991BD77C61068DA17E3156D136B7B0B3D8') { throw 'NSIS archive checksum mismatch' }
+Expand-Archive .cache/nsis/nsis-3.13.zip .cache/nsis -Force
+./scripts/build-installer.ps1
+```
+
+Hasilnya `AzyCore-Setup-0.1.0-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
+
 ## Verifikasi build ini
+
+Installer diuji dengan `scripts/test-installer.ps1`: folder pilihan dengan spasi/Unicode, checksum executable, metadata/atribusi, registrasi uninstall per-user, shortcut Start Menu, perlindungan shortcut desktop lama, startup browser beserta lokasi profil, reinstall, dan uninstall yang mempertahankan profil serta file lain. `scripts/test-installer-wizard.ps1` memverifikasi input lokasi dan tombol **Cari…** pada wizard. Pengujian memakai folder sementara proyek dan menolak menimpa instalasi/registrasi Azy Core yang sudah ada.
 
 Dua puluh kelompok uji `scripts/test-tabs-split.ps1` memverifikasi drag pointer nyata, pratinjau tab yang mengikuti pointer dan hilang setelah dilepas, urutan serta batas kelompok pin, pasangan split yang tetap berdekatan termasuk saat drag/pin campuran, region modal tanpa area di luar sisi/sudut, state halaman yang tetap, dua viewport website, fokus Windows pada kedua panel, region chrome yang menyisakan area website interaktif, drag divider, tukar posisi, kontrol panel aktif, perpindahan ke tab lain/setelan, tutup/keluar split, pemisahan mode privat, menu klik kanan, urutan setelah restart, dan pemuatan tab sesi yang masih tertunda. Probe fokus dibatasi ke proses browser pengujian dan fixture lokal memakai profil sementara di `.cache`.
 
