@@ -1,6 +1,6 @@
 [package]
 name = "azy-core"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 description = "Azy Core browser for Windows"
 build = "build.rs"
@@ -21,7 +21,7 @@ base64 = "0.22"
 sha2 = "0.10"
 flate2 = "1"
 crc32fast = "1"
-windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_Shell_Common", "Win32_System_Com", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_Networking_WinHttp", "Win32_Security_Cryptography"] }
+windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_Shell_Common", "Win32_System_Com", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_Networking_WinHttp", "Win32_Security_Cryptography"] }
 
 [build-dependencies]
 embed-resource = "3"

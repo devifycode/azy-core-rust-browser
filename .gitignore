@@ -38,6 +38,7 @@ Desktop.ini
 /.codex/
 /.agents/
 /.aws/
+/.update-signing/
 /.vs/
 /.vscode/
 *.pem

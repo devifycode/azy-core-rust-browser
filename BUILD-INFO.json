@@ -1,11 +1,11 @@
 {
   "application": "Azy Core",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "architecture": "Windows x64",
   "executable": "AzyCore.exe",
-  "bytes": 3798016,
-  "sha256": "1856135B923DB233E7E9463DBBE643B9A2A097E9D91C9521DBF63198165542FD",
-  "unitTestsPassed": 13,
+  "bytes": 3978752,
+  "sha256": "31191522ED2F1A7D342CBACADA1EBBA72FEE55817EF7C17B961952A642D20FE9",
+  "unitTestsPassed": 17,
   "integrationGroupsPassed": 9,
   "buildCache": ".cache",
   "buildOutput": "target",
@@ -77,5 +77,14 @@
     "Explorer launches reuse an existing window within the same profile, or start a browser if absent",
     "Authenticated loopback broker with exclusive per-window file locks, startup serialization and retry deduplication",
     "Restore minimized windows; multiple file arguments; private/new-window options; surviving-window reuse and stale-registration cleanup"
+  ],
+  "updateChecksPassed": 10,
+  "updateTest": "scripts/test-updater.ps1",
+  "updateFeatures": [
+    "Automatic check after startup and every six hours; persistent toolbar notice and manual checks in Settings/About",
+    "RSA-3072 signed manifest pinned to embedded public key; size, SHA-256 and x64 executable verification over trusted GitHub HTTPS",
+    "Download, verify again, then restart and replace executable directly with rollback; no installer used",
+    "Preserves local profile, persistent cookies, bookmarks, settings, downloads and regular tabs; active download and other-window guards",
+    "Production ignores local debug fixtures; release signing key remains private and excluded from Git"
   ]
 }

@@ -399,7 +399,12 @@ fn ecdsa_raw(der: &[u8]) -> Result<Vec<u8>> {
     }
     Ok(out)
 }
-fn verify_signature(public: &[u8], signature: &[u8], hash: &[u8], rsa: bool) -> Result<()> {
+pub(crate) fn verify_signature(
+    public: &[u8],
+    signature: &[u8],
+    hash: &[u8],
+    rsa: bool,
+) -> Result<()> {
     unsafe {
         let mut info: *mut CERT_PUBLIC_KEY_INFO = std::ptr::null_mut();
         let mut length = 0;

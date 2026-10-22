@@ -4,7 +4,7 @@ Browser Windows x64 dengan aplikasi native Rust dan mesin Microsoft Edge WebView
 
 ## Menjalankan
 
-Unduh **AzyCore-Setup-0.1.4-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
+Unduh **AzyCore-Setup-0.1.5-x64.exe** dari [GitHub Releases](https://github.com/devifycode/azy-core-rust-browser/releases/latest) untuk instalasi, atau **AzyCore.exe** untuk versi portable. `SHA256SUMS.txt` pada release dapat dipakai untuk memeriksa integritas unduhan.
 
 Jalankan installer, pilih **Lanjut**, lalu **Cari…** pada halaman **Pilih Lokasi Instalasi** untuk menentukan folder. Lokasi default adalah `%LOCALAPPDATA%\Programs\Azy Core`, dengan instalasi untuk akun pengguna saat ini tanpa elevasi administrator. Pilih folder yang dapat ditulis akun tersebut. Shortcut Start Menu dibuat otomatis; shortcut desktop bersifat opsional. Installer tidak mengganti browser default.
 
@@ -15,6 +15,9 @@ Klik dua kali **AzyCore.exe** di folder ini. Memerlukan Windows 10/11 x64 dan Mi
 Simpan executable di lokasi yang dapat ditulis. Profil, cookies, cache, bookmark, sesi, riwayat, dan unduhan disimpan dalam **AzyCore.Data** di samping executable. Secara default setiap unduhan web menampilkan dialog pemilihan folder. Aktifkan **Gunakan folder ini otomatis untuk unduhan berikutnya** untuk memakai folder tetap, atau atur kembali melalui **Setelan → Unduhan**. Jika mode otomatis diaktifkan sebelum memilih folder, lokasi awalnya adalah **AzyCore.Data\Downloads**. Logo dan antarmuka sudah ditanam ke executable; file sumber logo tidak harus ikut disalin.
 
 ## Fitur
+
+- **Pembaruan aplikasi dari browser:** Azy Core memeriksa rilis stabil GitHub sekitar 15 detik setelah mulai dan setiap 6 jam selama aplikasi berjalan. Jika versi lebih baru tersedia, toolbar menampilkan **Update tersedia**. Klik untuk melihat versi dan catatan rilis, pilih **Unduh pembaruan**, lalu **Mulai ulang & perbarui**. Pemeriksaan manual tersedia di **Setelan** dan **Tentang Azy Core**. Tidak ada installer yang dijalankan: executable diganti langsung pada folder yang sama, lalu browser dibuka kembali. Profil, bookmark, setelan, unduhan, dan cookies persisten tetap berada di lokasi semula. Tab biasa dipulihkan setelah update, termasuk bila pemulihan sesi biasa dimatikan; tab privat tidak dipulihkan. Simpan pekerjaan halaman sebelum mulai ulang.
+
 
 - PDF yang dibuka dari **Windows Explorer → Open with → Azy Core** diteruskan ke jendela Azy Core yang sudah berjalan pada profil yang sama, sebagai tab baru. Jika belum ada jendela, aplikasi dijalankan. Jendela yang diminimalkan ditampilkan kembali; beberapa file dapat diteruskan sekaligus. Permintaan biasa membuka tab biasa, sedangkan argumen `--private` meminta tab privat. `--new-window` tetap membuat jendela terpisah. Setelah memperbarui dari versi sebelum 0.1.4, tutup dan buka kembali Azy Core agar penerima file aktif.
 
@@ -80,7 +83,7 @@ Simpan executable di lokasi yang dapat ditulis. Profil, cookies, cache, bookmark
 
 ## Batas versi 0.1
 
-Ini browser awal yang dapat digunakan, bukan implementasi penuh Google Chrome. Badge toolbar dinamis, action tanpa popup (`action.onClicked`), sinkronisasi akun Google, pengelola kata sandi khusus, impor profil Chrome, registrasi default browser, dan pembaruan otomatis aplikasi/ekstensi belum tersedia. Pemasangan Chrome Web Store memakai tombol Azy Core; tombol bawaan **Add to Chrome** pada halaman toko tidak terintegrasi dengan WebView2. Paket terbatas atau yang memerlukan autentikasi mungkin tidak tersedia. Tidak semua API ekstensi Chrome tersedia. Penyesuaian tab saat ini berlaku pada konteks popup; API window/tab dari background worker tetap mengikuti model window WebView2. Dukungan DRM, codec, serta autentikasi popup tertentu bergantung pada WebView2. Pencarian teks memakai `window.find`, sehingga dukungannya mengikuti halaman. Jendela berbeda berbagi folder profil; pengaturan yang diubah serentak pada beberapa jendela belum disinkronkan secara langsung.
+Ini browser awal yang dapat digunakan, bukan implementasi penuh Google Chrome. Badge toolbar dinamis, action tanpa popup (`action.onClicked`), sinkronisasi akun Google, pengelola kata sandi khusus, impor profil Chrome, registrasi default browser, dan pembaruan otomatis ekstensi belum tersedia. Pemasangan Chrome Web Store memakai tombol Azy Core; tombol bawaan **Add to Chrome** pada halaman toko tidak terintegrasi dengan WebView2. Paket terbatas atau yang memerlukan autentikasi mungkin tidak tersedia. Tidak semua API ekstensi Chrome tersedia. Penyesuaian tab saat ini berlaku pada konteks popup; API window/tab dari background worker tetap mengikuti model window WebView2. Dukungan DRM, codec, serta autentikasi popup tertentu bergantung pada WebView2. Pencarian teks memakai `window.find`, sehingga dukungannya mengikuti halaman. Jendela berbeda berbagi folder profil; pengaturan yang diubah serentak pada beberapa jendela belum disinkronkan secara langsung.
 
 ## Memasang ekstensi
 
@@ -157,11 +160,14 @@ Expand-Archive .cache/nsis/nsis-3.13.zip .cache/nsis -Force
 ./scripts/build-installer.ps1
 ```
 
-Hasilnya `AzyCore-Setup-0.1.4-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
+Hasilnya `AzyCore-Setup-0.1.5-x64.exe` di folder proyek. Compiler di lokasi lain dapat diberikan melalui `-NsisPath`. Source wizard berada di `installer/AzyCore.nsi`. Executable installer, compiler dan hasil pengujian tetap diabaikan Git; executable diterbitkan sebagai aset release.
 
 ## Verifikasi
 
-Pada v0.1.4, build installer dan wizard pemilihan folder berhasil diverifikasi. Uji install/uninstall otomatis tidak diulang karena ada instalasi pengguna yang aktif; instalasi tersebut tidak diubah. Source installer tetap sama seperti versi 0.1.3 yang telah lulus 12 pemeriksaan install/uninstall.
+Pengujian updater `scripts/test-updater.ps1` menjalankan client debug versi 0.1.4 pada folder terisolasi, menerima paket produksi 0.1.5 yang ditandatangani, lalu benar-benar mengganti executable dan memulai ulang browser. Memeriksa notifikasi, tindakan unduh, verifikasi ulang setelah file diubah, penundaan saat ada unduhan/jendela lain, pemulihan profil/tab/settings/cookies persisten, akses GitHub dari build produksi, dan rollback bila executable pengganti tidak dapat dijalankan. Feed fixture lokal hanya tersedia dalam build debug; build release memakai endpoint GitHub resmi.
+
+
+Pada v0.1.5, build installer dan wizard pemilihan folder berhasil diverifikasi. Uji install/uninstall otomatis tidak diulang karena ada instalasi pengguna yang aktif; instalasi tersebut tidak diubah. Source installer tetap sama seperti versi 0.1.3 yang telah lulus 12 pemeriksaan install/uninstall.
 
 Sepuluh pemeriksaan `scripts/test-instance.ps1` memverifikasi pembukaan file saat belum ada aplikasi, pengalihan selama startup dan ketika sudah berjalan, beberapa file sekaligus, mode privat eksplisit, pemulihan jendela minimized, penolakan token yang salah, deduplikasi pengiriman, jendela terpisah, jendela yang masih terbuka setelah jendela pertama ditutup, isolasi profil, dan pemulihan setelah crash. Komunikasi dibatasi ke loopback dengan token acak per jendela, kunci file eksklusif untuk identitas proses hidup, dan antrean event ke thread UI. Proses penerus keluar sebelum membaca atau menyimpan browser.json.
 
@@ -184,7 +190,7 @@ Sebelas kelompok uji `scripts/test-browser-update.ps1` memverifikasi saran riway
 
 Lima uji transisi halaman pada `scripts/test-presentation.ps1` lulus: permukaan pemuatan sebelum respons tiba, halaman gelap ditampilkan tanpa menunggu gambar lambat, pemakaian ulang WebView dari tab baru, tema gelap aplikasi, dan fallback respons lambat. Pengujian mengamati batas viewport dan status presentasi dengan fixture lokal; bukan pengukuran frame compositor GPU pada seluruh website. Rekaman laporan pengguna telah diperiksa; warna serta skeleton pemuatan yang dibuat website tetap mengikuti website tersebut.
 
-Build release berhasil; 13 unit test dan 9 kelompok uji integrasi browser lulus. Uji integrasi memverifikasi startup/logo, rendering halaman, penolakan perintah aplikasi dari halaman web, navigasi kembali/maju, bookmark/riwayat, zoom, tab baru/tutup/pulihkan, cookies privat terpisah, unduhan file aktual, halaman internal, dan penyimpanan data. Pemeriksaan DLL menunjukkan executable hanya bergantung pada library sistem Windows; mesin WebView2 tetap harus terpasang. Dialog cetak, pintasan keyboard fisik, dan kompatibilitas seluruh situs internet belum diuji menyeluruh.
+Build release berhasil; 17 unit test dan 9 kelompok uji integrasi browser lulus. Uji integrasi memverifikasi startup/logo, rendering halaman, penolakan perintah aplikasi dari halaman web, navigasi kembali/maju, bookmark/riwayat, zoom, tab baru/tutup/pulihkan, cookies privat terpisah, unduhan file aktual, halaman internal, dan penyimpanan data. Pemeriksaan DLL menunjukkan executable hanya bergantung pada library sistem Windows; mesin WebView2 tetap harus terpasang. Dialog cetak, pintasan keyboard fisik, dan kompatibilitas seluruh situs internet belum diuji menyeluruh.
 
 Uji ekstensi memakai ekstensi Manifest V3 buatan sendiri pada profil sementara: pemasangan lewat formulir, content script di website, komunikasi dengan service worker, isolasi dari UI aplikasi, halaman opsi, sakelar nonaktif/aktif, penghapusan cookies profil website, isolasi tab privat, status nonaktif setelah restart, dan penghapusan dari profil. Folder picker sistem disediakan melalui Windows FileOpenDialog; otomatisasi memakai formulir lokasi folder. Komponen internal runtime PDF/clipboard tidak ditampilkan sebagai ekstensi pengguna.
 
@@ -197,3 +203,20 @@ Sembilan kelompok uji `scripts/test-home.ps1` memverifikasi dialog tambah/edit/h
 Tiga kelompok uji pemblokir pada `scripts/test-adblock.ps1` memverifikasi iklan/pelacak/iframe/worker terhenti sebelum mencapai server, konten normal tetap dimuat, pengecualian situs tersimpan dan mengizinkan request nyata, serta sakelar global dan tab privat. Fixture mengarahkan domain filter ke server lokal; pengujian tidak bergantung pada jaringan iklan eksternal. Kebijakan sertifikat/sandbox browser tidak diturunkan. `assets/filters/NOTICE.md` memuat atribusi dan lisensi CC BY-SA 3.0 atau versi lebih baru untuk data filter yang diadaptasi dari The EasyList authors.
 
 Uji tambahan `scripts/test-session.ps1` memverifikasi pemulihan sesi tanpa pemuatan website latar belakang, pemuatan ketika tab dipilih, pengaktifan tab tertunda setelah tab aktif ditutup, dan bookmark tetap tersimpan. Benchmark `scripts/benchmark.ps1` juga memverifikasi tiga tab tidur dan isi formulir tetap ada setelah dilanjutkan tanpa permintaan halaman ulang. Lihat [PERFORMANCE.md](PERFORMANCE.md) untuk angka dan batas pengukurannya.
+
+## Menerbitkan paket pembaruan
+
+Fitur updater mulai tersedia di 0.1.5. Pengguna versi sebelumnya cukup menutup browser lalu mengganti `AzyCore.exe` dengan versi baru sekali, tanpa menghapus `AzyCore.Data`; pembaruan berikutnya dapat dilakukan dari browser. Folder aplikasi harus dapat ditulis oleh pengguna. Update ditunda selama unduhan aktif atau masih ada jendela lain pada profil yang sama.
+
+Rilis stabil harus menyertakan **AzyCore.exe** dan **update-manifest.json**. Manifest berisi versi, platform, ukuran, URL paket, dan SHA-256, dengan tanda tangan RSA-3072/SHA-256 yang diverifikasi menggunakan public key yang tertanam pada aplikasi. Unduhan dibatasi ke HTTPS GitHub resmi; checksum, tanda tangan, dan executable x64 diperiksa sebelum aplikasi ditutup serta sebelum penggantian. Helper menyimpan backup dan mengembalikan executable lama bila penggantian atau peluncuran baru gagal.
+
+Setelah build release dan memperbarui `BUILD-INFO.json` agar sesuai executable, jalankan:
+
+```powershell
+node scripts/sign-update.cjs
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-installer.ps1
+```
+
+Unggah `.cache/publish/v<VERSI>/update-manifest.json` bersama executable ke release GitHub dengan tag `v<VERSI>`, lalu jadikan release stabil terbaru. Rilis tanpa manifest bertanda tangan tetap dapat diunduh manual, tetapi tidak akan dipasang oleh updater.
+
+Kunci penandatanganan asli berada di **.update-signing/private.pem**, diabaikan Git. Simpan backup privat di tempat aman dan pertahankan kunci tersebut untuk rilis berikutnya; jangan unggah private key atau membuat ulang key saat memperbarui. Public key yang boleh dipublikasikan berada di `assets/update-public.der`. `--init` pada script penandatanganan hanya untuk inisialisasi awal dan menolak menimpa kunci yang sudah ada.

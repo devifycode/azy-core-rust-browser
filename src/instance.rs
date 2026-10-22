@@ -84,6 +84,19 @@ fn exclusive(path: &Path, create: bool) -> io::Result<File> {
         .share_mode(0)
         .open(path)
 }
+pub fn has_other_windows(root: &Path) -> bool {
+    fs::read_dir(root.join("Launch"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "json"))
+        .filter(|entry| {
+            exclusive(&entry.path().with_extension("lock"), false).is_err_and(|e| locked(&e))
+        })
+        .take(2)
+        .count()
+        > 1
+}
 pub fn start(root: &Path, args: &[String], proxy: EventLoopProxy<Msg>) -> io::Result<Launch> {
     let inputs: Vec<_> = args
         .iter()

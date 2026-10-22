@@ -5,6 +5,7 @@ mod extensions;
 mod favicon;
 mod instance;
 mod model;
+mod updater;
 mod webstore;
 use model::{address, now, Download, Entry, Store};
 use serde_json::{json, Value};
@@ -52,6 +53,9 @@ fn diagnostic(message: &str) {
 }
 #[derive(Debug, Clone)]
 enum Msg {
+    UpdateChecked(Result<Option<updater::Available>, String>),
+    UpdateDownloaded(Result<PathBuf, String>),
+    UpdateProgress(u8),
     ExternalOpen(Vec<String>, bool),
     StorePrepared(Result<webstore::Prepared, String>),
     ExtensionPopupReady(u64, u64, String, i64),
@@ -99,6 +103,10 @@ struct Tab {
     network: Rc<RefCell<adblock::Page>>,
 }
 struct Browser {
+    update: updater::State,
+    update_available: Option<updater::Available>,
+    update_plan: Option<PathBuf>,
+    next_update_check: Instant,
     window: Window,
     ui: WebView,
     tabs: Vec<Tab>,
@@ -732,8 +740,81 @@ impl Browser {
         self.window.set_background_color(Some(color));
         let _ = self.ui.set_background_color(color);
     }
+    fn check_update(&mut self) {
+        self.next_update_check = Instant::now() + Duration::from_secs(6 * 60 * 60);
+        if matches!(
+            self.update.status.as_str(),
+            "checking" | "downloading" | "ready" | "installing"
+        ) {
+            return;
+        }
+        self.update.status = "checking".into();
+        self.update.message = "Memeriksa rilis terbaru…".into();
+        self.sync();
+        let proxy = self.proxy.clone();
+        std::thread::spawn(move || {
+            let result = updater::check().map_err(|e| e.to_string());
+            let _ = proxy.send_event(Msg::UpdateChecked(result));
+        });
+    }
+    fn download_update(&mut self) {
+        if matches!(
+            self.update.status.as_str(),
+            "checking" | "downloading" | "ready" | "installing"
+        ) {
+            return;
+        }
+        let Some(available) = self.update_available.clone() else {
+            self.check_update();
+            return;
+        };
+        self.update.status = "downloading".into();
+        self.update.progress = 0;
+        self.update.message = "Mengunduh dan memverifikasi pembaruan…".into();
+        self.sync();
+        let root = self.root.clone();
+        let proxy = self.proxy.clone();
+        std::thread::spawn(move || {
+            let result = updater::download(&root, &available, &proxy).map_err(|e| e.to_string());
+            let _ = proxy.send_event(Msg::UpdateDownloaded(result));
+        });
+    }
+    fn install_update(&mut self) {
+        let Some(plan) = self.update_plan.clone() else {
+            return;
+        };
+        if self
+            .store
+            .downloads
+            .iter()
+            .any(|d| d.status == "downloading")
+        {
+            self.toast("Tunggu unduhan selesai sebelum memulai ulang untuk pembaruan.");
+            return;
+        }
+        if instance::has_other_windows(&self.root) {
+            self.toast("Tutup jendela Azy Core lain pada profil ini sebelum memperbarui.");
+            return;
+        }
+        self.save();
+        match updater::install(&plan) {
+            Ok(()) => {
+                self.update.status = "installing".into();
+                self.sync();
+                self.exit = true;
+            }
+            Err(error) => {
+                self.update.status = "error".into();
+                self.update.message = error.to_string();
+                self.sync();
+            }
+        }
+    }
     fn maintain(&mut self) {
         self.next_maintenance = Instant::now() + Duration::from_secs(5);
+        if Instant::now() >= self.next_update_check {
+            self.check_update();
+        }
         self.sync();
         if !self.store.settings.memory_saver
             || self
@@ -809,7 +890,7 @@ impl Browser {
             json!({"id":t.id,"title":t.title,"url":t.url,"private":t.private,"pinned":t.pinned,"loading":t.loading,"back":back.as_bool(),"forward":forward.as_bool(),"zoom":(t.zoom*100.).round(),"favicon":t.favicon,"suspended":t.suspended,"loaded":t.view.is_some(),"presentation_pending":t.view.is_some() && !t.presented && t.url != "azy://newtab","blocked":t.network.borrow().blocked,"adblock":self.blocker.borrow().active_for(&t.url)})
         }).collect();
         let extension_rows: Vec<Value> = self.extension_list.iter().map(|info| json!({"id":info.id,"name":info.name,"enabled":info.enabled,"pinned":self.store.extension_pins.get(&info.id).copied().unwrap_or(true),"source":self.store.extensions.get(&info.id)})).collect();
-        let state = json!({"tabs":tabs,"active":self.active,"split":self.split,"splitRatio":self.split_ratio,"splitVisible":self.split.is_some_and(|ids|ids.contains(&self.active))&&self.panel.is_empty(),"panel":self.panel,"home":self.store.home,"extensions":extension_rows,"extensionPopup":self.extension_popup_id,"storePrepared":self.store_prepared,"extensionBusy":self.extension_busy,"extensionReady":self.extension_ready,"extensionError":self.extension_error,"bookmarks":self.store.bookmarks,"history":self.store.history,"downloads":self.store.downloads,"settings":self.store.settings,"dataPath":self.root.display().to_string(),"adblockRules":self.blocker.borrow().rule_count()});
+        let state = json!({"tabs":tabs,"active":self.active,"split":self.split,"splitRatio":self.split_ratio,"splitVisible":self.split.is_some_and(|ids|ids.contains(&self.active))&&self.panel.is_empty(),"panel":self.panel,"home":self.store.home,"extensions":extension_rows,"extensionPopup":self.extension_popup_id,"storePrepared":self.store_prepared,"extensionBusy":self.extension_busy,"extensionReady":self.extension_ready,"extensionError":self.extension_error,"bookmarks":self.store.bookmarks,"history":self.store.history,"downloads":self.store.downloads,"settings":self.store.settings,"dataPath":self.root.display().to_string(),"update":self.update,"adblockRules":self.blocker.borrow().rule_count()});
         let mut previous = self.last_ui_state.borrow_mut();
         let mut changes = serde_json::Map::new();
         for (key, value) in state.as_object().unwrap() {
@@ -1497,6 +1578,52 @@ impl Browser {
     }
     fn message(&mut self, msg: Msg) {
         match msg {
+            Msg::UpdateChecked(result) => {
+                match result {
+                    Ok(Some(available)) => {
+                        let notify = self.update.version != available.manifest.version;
+                        self.update.version = available.manifest.version.clone();
+                        self.update.status = "available".into();
+                        self.update.message = format!("Azy Core {} tersedia.", self.update.version);
+                        self.update_available = Some(available);
+                        if notify {
+                            self.toast(&self.update.message);
+                        }
+                    }
+                    Ok(None) => {
+                        self.update.status = "current".into();
+                        self.update.version.clear();
+                        self.update.message = "Azy Core sudah menggunakan versi terbaru.".into();
+                        self.update_available = None;
+                    }
+                    Err(error) => {
+                        self.update.status = "error".into();
+                        self.update.message = error;
+                    }
+                }
+                self.sync();
+            }
+            Msg::UpdateProgress(progress) => {
+                self.update.progress = progress;
+                self.sync();
+            }
+            Msg::UpdateDownloaded(result) => {
+                match result {
+                    Ok(plan) => {
+                        self.update_plan = Some(plan);
+                        self.update.status = "ready".into();
+                        self.update.progress = 100;
+                        self.update.message =
+                            "Pembaruan siap dipasang. Mulai ulang Azy Core untuk menerapkan."
+                                .into();
+                    }
+                    Err(error) => {
+                        self.update.status = "error".into();
+                        self.update.message = error;
+                    }
+                }
+                self.sync();
+            }
             Msg::ExternalOpen(inputs, private) => {
                 for input in inputs {
                     if let Err(error) = self.new_tab(&input, private) {
@@ -2162,6 +2289,9 @@ impl Browser {
                     self.command("reload");
                 }
             }
+            "update-check" => self.check_update(),
+            "update-download" => self.download_update(),
+            "update-install" => self.install_update(),
             "toggle-bookmarks" => {
                 self.store.settings.show_bookmarks = !self.store.settings.show_bookmarks;
                 self.layout();
@@ -2471,7 +2601,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         .build_as_child(&window)?;
     diagnostic("UI WebView ready");
     shortcuts(&ui, proxy.clone());
-    let session = if store.settings.restore {
+    let session = if store.settings.restore || args.iter().any(|a| a == "--restore-after-update") {
         store.session.clone()
     } else {
         vec![]
@@ -2491,6 +2621,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             + 1,
     );
     let mut app = Browser {
+        update: updater::State::default(),
+        update_available: None,
+        update_plan: None,
+        next_update_check: Instant::now() + Duration::from_secs(15),
         window,
         ui,
         tabs: vec![],
@@ -2551,6 +2685,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         app.new_tab("", false)?;
     }
+    if let Ok(bytes) = fs::read(app.root.join("update-result.json")) {
+        if let Ok(receipt) = serde_json::from_slice::<Value>(&bytes) {
+            if let Some(message) = receipt["message"].as_str() {
+                app.update.message = message.into();
+                if receipt["failed"] == true {
+                    app.update.status = "error".into();
+                }
+            }
+        }
+        let _ = fs::remove_file(app.root.join("update-result.json"));
+    }
+    updater::cleanup(&app.root);
+    app.sync();
     if !app.store.extensions.is_empty() {
         app.refresh_extensions();
     }
@@ -2594,6 +2741,25 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     });
 }
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(result) = updater::helper(&args) {
+        if let Err(error) = result {
+            diagnostic(&format!("Update failed: {error}"));
+            let text: Vec<u16> = format!("Pembaruan Azy Core tidak selesai.\n\n{error}")
+                .encode_utf16()
+                .chain(Some(0))
+                .collect();
+            unsafe {
+                windows::Win32::UI::WindowsAndMessaging::MessageBoxW(
+                    None,
+                    windows::core::PCWSTR(text.as_ptr()),
+                    windows::core::w!("Pembaruan Azy Core"),
+                    windows::Win32::UI::WindowsAndMessaging::MB_ICONERROR,
+                );
+            }
+        }
+        return;
+    }
     std::panic::set_hook(Box::new(|info| diagnostic(&format!("Panic: {info}"))));
     if let Err(e) = run() {
         diagnostic(&format!("Startup error: {e}"));
